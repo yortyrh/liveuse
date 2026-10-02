@@ -9,9 +9,10 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-static constexpr float kCircleRadiusPx = 40.0f;
-static constexpr uint16_t kCircleSteps = 120;
-static constexpr uint16_t kZigzagSegmentSteps = 40;
+static constexpr float kCircleRadiusPx = 80.0f;
+static constexpr uint8_t kCircleLaps = 4;
+static constexpr uint16_t kCircleStepsPerLap = 160;
+static constexpr uint16_t kZigzagSegmentSteps = 160;
 static constexpr int8_t kZigzagStepPx = 2;
 
 static void clampToInt8(float fx, float fy, int8_t *dx, int8_t *dy) {
@@ -97,11 +98,12 @@ void motionDemoCircle(Adafruit_USBD_HID &hid) {
   float last_x = 0.0f;
   float last_y = 0.0f;
 
-  for (uint16_t i = 0; i < kCircleSteps; ++i) {
+  const uint16_t steps = static_cast<uint16_t>(kCircleStepsPerLap) * kCircleLaps;
+  for (uint16_t i = 0; i < steps; ++i) {
     const float t0 = (2.0f * static_cast<float>(M_PI) * static_cast<float>(i)) /
-                     static_cast<float>(kCircleSteps);
+                     static_cast<float>(kCircleStepsPerLap);
     const float t1 = (2.0f * static_cast<float>(M_PI) * static_cast<float>(i + 1)) /
-                     static_cast<float>(kCircleSteps);
+                     static_cast<float>(kCircleStepsPerLap);
 
     const float x0 = kCircleRadiusPx * cosf(t0);
     const float y0 = kCircleRadiusPx * sinf(t0);

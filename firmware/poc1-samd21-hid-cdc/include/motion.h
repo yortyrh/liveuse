@@ -15,7 +15,7 @@ bool hidSendRelative(Adafruit_USBD_HID &hid, int8_t dx, int8_t dy);
 
 /**
  * Smoothly walk from (0,0) to (total_dx, total_dy) using many small reports.
- * Blocks the calling FreeRTOS task via vTaskDelay (delay()).
+ * Blocks until the path finishes (delay() between reports).
  */
 void motionSmoothMove(Adafruit_USBD_HID &hid, int16_t total_dx, int16_t total_dy);
 
