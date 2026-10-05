@@ -120,7 +120,8 @@ void save_config(const std::filesystem::path &path, const Config &cfg) {
     std::error_code ec;
     fs::create_directories(parent, ec);
     if (ec) throw std::runtime_error("cannot create " + parent.string() + ": " + ec.message());
-    ::chmod(parent.c_str(), 0700);
+    if (::chmod(parent.c_str(), 0700) != 0)
+      throw std::runtime_error("cannot set directory mode");
   }
   nlohmann::json j = {{"name", cfg.name},
                       {"username", cfg.username},
@@ -129,11 +130,14 @@ void save_config(const std::filesystem::path &path, const Config &cfg) {
   std::string body = j.dump(2) + "\n";
   int fd = ::open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
   if (fd < 0) throw std::runtime_error("cannot open " + path.string());
-  ::fchmod(fd, 0600);
+  if (::fchmod(fd, 0600) != 0) {
+    ::close(fd);
+    throw std::runtime_error("cannot set file mode");
+  }
   size_t off = 0;
   while (off < body.size()) {
     ssize_t w = ::write(fd, body.data() + off, body.size() - off);
-    if (w < 0) {
+    if (w <= 0) {
       ::close(fd);
       throw std::runtime_error("cannot write " + path.string());
     }
