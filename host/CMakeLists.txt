@@ -33,3 +33,8 @@ add_executable(cdc_test tests/cdc_test.cpp src/cdc.cpp)
 target_include_directories(cdc_test PRIVATE src)
 target_link_libraries(cdc_test PRIVATE keymap)
 add_test(NAME cdc COMMAND cdc_test)
+
+add_executable(config_test tests/config_test.cpp src/config.cpp)
+target_include_directories(config_test PRIVATE src)
+target_link_libraries(config_test PRIVATE nlohmann_json::nlohmann_json "-framework CoreFoundation" "-framework Security")
+add_test(NAME config COMMAND config_test)
