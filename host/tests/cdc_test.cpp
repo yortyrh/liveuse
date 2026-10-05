@@ -72,6 +72,11 @@ int main() {
     check(r.has_value() && *r == "DEMO circle", "demo_circle");
   }
   check(is_error(format_echo("a\nb"), 400), "echo_newline");
+  check(is_error(format_echo(std::string(76, 'a')), 400), "echo_too_long");
+  {
+    auto r = format_echo(std::string(75, 'a'));
+    check(r.has_value() && r->size() == 80, "echo_max_line");
+  }
   {
     auto r = format_raw("HELP");
     check(r.has_value() && *r == "HELP", "raw_help");

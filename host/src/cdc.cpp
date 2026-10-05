@@ -11,6 +11,8 @@ namespace {
 constexpr std::size_t kMaxTypeChars = 2000;
 constexpr std::size_t kChunkChars = 75;
 constexpr std::size_t kMaxLineChars = 80;
+constexpr std::size_t kEchoPrefixChars = 5;  // "ECHO "
+constexpr std::size_t kMaxEchoTextChars = kMaxLineChars - kEchoPrefixChars;
 constexpr int kMaxDelta = 2000;
 
 std::unexpected<CdcError> bad(std::string message) {
@@ -92,7 +94,11 @@ std::expected<std::string, CdcError> format_demo(std::string_view pattern) {
 }
 
 std::expected<std::string, CdcError> format_echo(std::string_view text) {
-  if (auto ok = check_line(text, "echo text"); !ok) return std::unexpected(ok.error());
+  if (text.empty()) return bad("echo text is empty");
+  if (text.size() > kMaxEchoTextChars) return bad("echo text is too long");
+  if (text.find_first_of("\r\n") != std::string_view::npos) {
+    return bad("echo text must be a single line");
+  }
   return "ECHO " + std::string(text);
 }
 
