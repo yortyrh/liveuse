@@ -24,11 +24,7 @@ static void clampToInt8(float fx, float fy, int8_t *dx, int8_t *dy) {
   *dy = static_cast<int8_t>(lroundf(fy));
 }
 
-bool hidSendRelative(Adafruit_USBD_HID &hid, int8_t dx, int8_t dy) {
-  if (dx == 0 && dy == 0) {
-    return true;
-  }
-
+static void wakeHid() {
 #if defined(USBDevice)
   if (USBDevice.suspended()) {
     USBDevice.remoteWakeup();
@@ -38,12 +34,78 @@ bool hidSendRelative(Adafruit_USBD_HID &hid, int8_t dx, int8_t dy) {
     TinyUSBDevice.remoteWakeup();
   }
 #endif
+}
 
+bool hidSendRelative(Adafruit_USBD_HID &hid, int8_t dx, int8_t dy) {
+  if (dx == 0 && dy == 0) {
+    return true;
+  }
+
+  wakeHid();
   if (!hid.ready()) {
     return false;
   }
   // report_id 0: single-report mouse descriptor (no Report ID byte)
   return hid.mouseMove(0, dx, dy);
+}
+
+static bool sendWhenReady(Adafruit_USBD_HID &hid, bool (*send)(Adafruit_USBD_HID &)) {
+  for (int attempt = 0; attempt < 5; ++attempt) {
+    wakeHid();
+    if (hid.ready() && send(hid)) {
+      return true;
+    }
+    delay(1);
+  }
+  return false;
+}
+
+static uint8_t s_clickButtons = 0;
+static int8_t s_scrollNotch = 0;
+
+static bool sendClickPress(Adafruit_USBD_HID &hid) {
+  return hid.mouseButtonPress(0, s_clickButtons);
+}
+
+static bool sendClickRelease(Adafruit_USBD_HID &hid) {
+  return hid.mouseButtonRelease(0);
+}
+
+static bool sendScrollNotch(Adafruit_USBD_HID &hid) {
+  return hid.mouseScroll(0, s_scrollNotch, 0);
+}
+
+void motionClick(Adafruit_USBD_HID &hid, uint8_t buttons, uint8_t times) {
+  if (times < 1) {
+    times = 1;
+  }
+  s_clickButtons = buttons;
+
+  for (uint8_t i = 0; i < times; ++i) {
+    if (i > 0) {
+      // Stay inside a typical OS double-click window.
+      delay(80);
+    }
+    sendWhenReady(hid, sendClickPress);
+    delay(40);
+    sendWhenReady(hid, sendClickRelease);
+    delay(20);
+  }
+}
+
+void motionScroll(Adafruit_USBD_HID &hid, int16_t steps) {
+  int16_t left = steps;
+  while (left != 0) {
+    if (left > 0) {
+      s_scrollNotch = 1;
+      --left;
+    } else {
+      s_scrollNotch = -1;
+      ++left;
+    }
+    sendWhenReady(hid, sendScrollNotch);
+    delay(kReportIntervalMs);
+  }
 }
 
 void motionSmoothMove(Adafruit_USBD_HID &hid, int16_t total_dx, int16_t total_dy) {
