@@ -1,5 +1,5 @@
 /**
- * Smooth relative HID motion helpers (human-like small dx/dy steps).
+ * Relative HID motion. MOVE sends the delta in small steps.
  */
 #pragma once
 
@@ -14,16 +14,10 @@ static constexpr uint16_t kReportIntervalMs = 8;
 bool hidSendRelative(Adafruit_USBD_HID &hid, int8_t dx, int8_t dy);
 
 /**
- * Smoothly walk from (0,0) to (total_dx, total_dy) using many small reports.
- * Blocks until the path finishes (delay() between reports).
+ * Glide in a straight line. Steps stay small so the pointer travels
+ * instead of jumping. The gap between reports is 1 ms.
  */
-void motionSmoothMove(Adafruit_USBD_HID &hid, int16_t total_dx, int16_t total_dy);
-
-/** Parametric circle as successive relative deltas. */
-void motionDemoCircle(Adafruit_USBD_HID &hid);
-
-/** Closed square path (right/down/left/up) via small relative steps. */
-void motionDemoZigzag(Adafruit_USBD_HID &hid);
+void motionMove(Adafruit_USBD_HID &hid, int16_t total_dx, int16_t total_dy);
 
 /**
  * Press and release a mouse button `times` times.
@@ -31,7 +25,13 @@ void motionDemoZigzag(Adafruit_USBD_HID &hid);
  */
 void motionClick(Adafruit_USBD_HID &hid, uint8_t buttons, uint8_t times);
 
+/** Replace the held button mask. Later moves keep these buttons down. */
+void motionSetButtons(Adafruit_USBD_HID &hid, uint8_t buttons);
+
 /**
  * Vertical wheel. Positive is up, negative is down. One notch per HID report.
  */
 void motionScroll(Adafruit_USBD_HID &hid, int16_t steps);
+
+/** Horizontal wheel. Positive is right, negative is left. */
+void motionHScroll(Adafruit_USBD_HID &hid, int16_t steps);

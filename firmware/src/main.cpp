@@ -1,20 +1,19 @@
 /**
- * mcp-mouse POC1 — Seeeduino XIAO / XIAO SAMD21
+ * Live Use — Seeeduino XIAO / XIAO SAMD21
  *
  * USB composite on the same Type-C:
- *   - HID mouse (relative reports, smooth motion)
+ *   - HID mouse (relative reports; MOVE has no extra delay)
  *   - HID keyboard (TYPE / KEY commands)
  *   - CDC serial (command / echo control plane)
  *
  * Single Arduino loop: read a CDC line, run the motion, repeat.
  * TinyUSB is pumped by the core yield() inside delay() and Serial.
- *
- * Host service / MCP are later POCs — use any serial monitor for POC1.
  */
 
 #include <Arduino.h>
 #include <Adafruit_TinyUSB.h>
 
+#include "hid_reports.h"
 #include "keyboard.h"
 #include "motion.h"
 
@@ -42,7 +41,7 @@ static void ledPulse() {
 }
 
 static void trimLeading(char *s) {
-  char *start = s;
+  const char *start = s;
   while (*start && isspace(static_cast<unsigned char>(*start))) {
     ++start;
   }
@@ -66,29 +65,28 @@ static void printHelp() {
   Serial.println(F("  HELP"));
   Serial.println(F("  STATUS"));
   Serial.println(F("  ECHO <text>          — echo text back on CDC"));
-  Serial.println(F("  MOVE <dx> <dy>       — smooth relative HID move"));
+  Serial.println(F("  MOVE <dx> <dy>       — straight glide, small steps"));
   Serial.println(F("  CLICK left|right|double"));
   Serial.println(F("  SCROLL <steps>       — wheel notches, +up -down"));
-  Serial.println(F("  DEMO circle|zigzag|both"));
   Serial.println(F("  TYPE <ascii>"));
   Serial.println(F("  KEY <chord>"));
+  Serial.println(F("  KDOWN <key>          — hold a key"));
+  Serial.println(F("  KUP <key>"));
+  Serial.println(F("  HOTKEY <k1+k2>"));
+  Serial.println(F("  MDOWN left|right|middle"));
+  Serial.println(F("  MUP left|right|middle"));
+  Serial.println(F("  HSCROLL <steps>      — +right -left"));
   Serial.println(F("Anything else is echoed (composite CDC check)."));
 }
 
 static void printBanner() {
   Serial.println();
-  Serial.println(F("=== mcp-mouse POC1 — XIAO SAMD21 ==="));
+  Serial.println(F("=== Live Use ==="));
   Serial.println(F("USB: composite HID mouse + keyboard + CDC serial"));
-  Serial.println(F("Motion: smooth relative (circle/zigzag demo + MOVE)"));
-  Serial.println(F("===================================="));
+  Serial.println(F("Motion: MOVE glides in small steps"));
+  Serial.println(F("================"));
   printHelp();
   Serial.flush();
-}
-
-static void runDemoBoth() {
-  motionDemoCircle(g_usbHid);
-  delay(600);
-  motionDemoZigzag(g_usbHid);
 }
 
 static void handleLine(char *line) {
@@ -127,7 +125,7 @@ static void handleLine(char *line) {
   if (strcmp(cmd, "STATUS") == 0) {
     Serial.print(F("OK uptime_ms="));
     Serial.print(millis());
-    Serial.println(F(" fw=0.3.0"));
+    Serial.println(F(" fw=0.4.0"));
     return;
   }
 
@@ -139,6 +137,75 @@ static void handleLine(char *line) {
 
   if (strcmp(cmd, "KEY") == 0) {
     keyboardChord(g_usbKeyboard, rest);
+    return;
+  }
+
+  if (strcmp(cmd, "KDOWN") == 0) {
+    keyboardDown(g_usbKeyboard, rest);
+    return;
+  }
+
+  if (strcmp(cmd, "KUP") == 0) {
+    keyboardUp(g_usbKeyboard, rest);
+    return;
+  }
+
+  if (strcmp(cmd, "HOTKEY") == 0) {
+    keyboardHotkey(g_usbKeyboard, rest);
+    return;
+  }
+
+  if (strcmp(cmd, "MDOWN") == 0 || strcmp(cmd, "MUP") == 0) {
+    char arg[16] = {0};
+    size_t j = 0;
+    while (*rest && !isspace(static_cast<unsigned char>(*rest)) && j + 1 < sizeof(arg)) {
+      arg[j++] = static_cast<char>(tolower(static_cast<unsigned char>(*rest)));
+      ++rest;
+    }
+    uint8_t bit = 0;
+    if (strcmp(arg, "left") == 0) {
+      bit = 0x01;
+    } else if (strcmp(arg, "right") == 0) {
+      bit = 0x02;
+    } else if (strcmp(arg, "middle") == 0) {
+      bit = 0x04;
+    } else {
+      Serial.println(strcmp(cmd, "MDOWN") == 0 ? F("ERR MDOWN left|right|middle")
+                                               : F("ERR MUP left|right|middle"));
+      return;
+    }
+    static uint8_t buttons = 0;
+    if (strcmp(cmd, "MDOWN") == 0) {
+      buttons = static_cast<uint8_t>(buttons | bit);
+    } else {
+      buttons = static_cast<uint8_t>(buttons & static_cast<uint8_t>(~bit));
+    }
+    Serial.print(cmd);
+    Serial.print(' ');
+    Serial.println(arg);
+    ledPulse();
+    motionSetButtons(g_usbHid, buttons);
+    Serial.print(cmd);
+    Serial.print(' ');
+    Serial.print(arg);
+    Serial.println(F(" done"));
+    return;
+  }
+
+  if (strcmp(cmd, "HSCROLL") == 0) {
+    char *end = nullptr;
+    long steps = strtol(rest, &end, 10);
+    if (end == rest) {
+      Serial.println(F("ERR HSCROLL needs steps"));
+      return;
+    }
+    if (steps > kMaxMoveDelta) steps = kMaxMoveDelta;
+    if (steps < -kMaxMoveDelta) steps = -kMaxMoveDelta;
+    Serial.print(F("HSCROLL "));
+    Serial.println(steps);
+    ledPulse();
+    motionHScroll(g_usbHid, static_cast<int16_t>(steps));
+    Serial.println(F("HSCROLL done"));
     return;
   }
 
@@ -168,7 +235,7 @@ static void handleLine(char *line) {
     Serial.print(' ');
     Serial.println(dy);
     ledPulse();
-    motionSmoothMove(g_usbHid, static_cast<int16_t>(dx), static_cast<int16_t>(dy));
+    motionMove(g_usbHid, static_cast<int16_t>(dx), static_cast<int16_t>(dy));
     Serial.println(F("MOVE done"));
     return;
   }
@@ -224,33 +291,6 @@ static void handleLine(char *line) {
     return;
   }
 
-  if (strcmp(cmd, "DEMO") == 0) {
-    char arg[16] = {0};
-    size_t j = 0;
-    while (*rest && !isspace(static_cast<unsigned char>(*rest)) && j + 1 < sizeof(arg)) {
-      arg[j++] = static_cast<char>(tolower(static_cast<unsigned char>(*rest)));
-      ++rest;
-    }
-
-    ledPulse();
-    if (strcmp(arg, "circle") == 0) {
-      Serial.println(F("DEMO circle"));
-      motionDemoCircle(g_usbHid);
-      Serial.println(F("DEMO circle done"));
-    } else if (strcmp(arg, "zigzag") == 0) {
-      Serial.println(F("DEMO zigzag"));
-      motionDemoZigzag(g_usbHid);
-      Serial.println(F("DEMO zigzag done"));
-    } else if (strcmp(arg, "both") == 0 || arg[0] == '\0') {
-      Serial.println(F("DEMO both"));
-      runDemoBoth();
-      Serial.println(F("DEMO both done"));
-    } else {
-      Serial.println(F("ERR DEMO circle|zigzag|both"));
-    }
-    return;
-  }
-
   Serial.print(F("ECHO "));
   Serial.println(line);
 }
@@ -289,12 +329,20 @@ void setup() {
   g_usbHid.setReportID(0);
 #endif
   g_usbHid.begin();
+  hid_report_set(0, desc_hid_report);
 
   g_usbKeyboard.setPollInterval(2);
   g_usbKeyboard.setReportDescriptor(desc_keyboard, sizeof(desc_keyboard));
   g_usbKeyboard.begin();
+  hid_report_set(1, desc_keyboard);
 
   Serial.begin(115200);
+  static_assert(CFG_TUD_HID >= 2, "CDC plus two HID interfaces");
+  // HID is added after the core opens USB. Re-enumerate so the host
+  // configures CDC and both HID interfaces together.
+  TinyUSBDevice.detach();
+  delay(50);
+  TinyUSBDevice.attach();
 
   const uint32_t deadline = millis() + 5000;
 #if defined(USBDevice)
