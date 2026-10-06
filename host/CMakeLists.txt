@@ -27,14 +27,47 @@ FetchContent_MakeAvailable(httplib json stb)
 add_library(keymap STATIC ../firmware/src/keymap.cpp)
 target_include_directories(keymap PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../firmware/include)
 
+set(LIVEUSE_CORE
+  src/cdc.cpp
+  src/config.cpp
+  src/control.cpp
+  src/http_app.cpp
+  src/locate.cpp
+  src/png.cpp
+  src/pointer.cpp
+  src/tween.cpp
+)
+add_library(liveuse_core STATIC ${LIVEUSE_CORE})
+target_include_directories(liveuse_core PUBLIC src ${stb_SOURCE_DIR})
+target_link_libraries(liveuse_core PUBLIC keymap httplib::httplib nlohmann_json::nlohmann_json
+  "-framework CoreFoundation" "-framework Security")
+
+if(APPLE)
+  set(LIVEUSE_CAPTURE src/capture_macos.mm)
+  set(LIVEUSE_CAPTURE_LIBS "-framework CoreGraphics" "-framework CoreFoundation")
+else()
+  set(LIVEUSE_CAPTURE src/capture_stub.cpp)
+  set(LIVEUSE_CAPTURE_LIBS "")
+endif()
+
+add_executable(liveuse src/main.cpp src/serial_macos.cpp ${LIVEUSE_CAPTURE})
+target_link_libraries(liveuse PRIVATE liveuse_core ${LIVEUSE_CAPTURE_LIBS})
+
 enable_testing()
 
-add_executable(cdc_test tests/cdc_test.cpp src/cdc.cpp)
-target_include_directories(cdc_test PRIVATE src)
-target_link_libraries(cdc_test PRIVATE keymap)
-add_test(NAME cdc COMMAND cdc_test)
+function(liveuse_test name)
+  add_executable(${name} ${ARGN})
+  target_link_libraries(${name} PRIVATE liveuse_core)
+  add_test(NAME ${name} COMMAND ${name})
+endfunction()
 
-add_executable(config_test tests/config_test.cpp src/config.cpp)
-target_include_directories(config_test PRIVATE src)
-target_link_libraries(config_test PRIVATE nlohmann_json::nlohmann_json "-framework CoreFoundation" "-framework Security")
-add_test(NAME config COMMAND config_test)
+liveuse_test(cdc_test tests/cdc_test.cpp)
+target_link_libraries(cdc_test PRIVATE keymap)
+liveuse_test(config_test tests/config_test.cpp)
+liveuse_test(locate_test tests/locate_test.cpp)
+liveuse_test(pointer_test tests/pointer_test.cpp)
+liveuse_test(http_test tests/http_test.cpp)
+
+add_executable(capture_stub_test tests/capture_stub_test.cpp src/capture_stub.cpp)
+target_include_directories(capture_stub_test PRIVATE src)
+add_test(NAME capture_stub_test COMMAND capture_stub_test)

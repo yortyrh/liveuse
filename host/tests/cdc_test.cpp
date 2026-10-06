@@ -67,10 +67,6 @@ int main() {
     auto r = format_scroll(-3);
     check(r.has_value() && *r == "SCROLL -3", "scroll_ok");
   }
-  {
-    auto r = format_demo("Circle");
-    check(r.has_value() && *r == "DEMO circle", "demo_circle");
-  }
   check(is_error(format_echo("a\nb"), 400), "echo_newline");
   check(is_error(format_echo(std::string(76, 'a')), 400), "echo_too_long");
   {
@@ -82,6 +78,32 @@ int main() {
     check(r.has_value() && *r == "HELP", "raw_help");
   }
   check(is_error(format_raw(std::string(81, 'x')), 400), "raw_too_long");
+  {
+    auto r = format_mouse_button("MDOWN", "Middle");
+    check(r.has_value() && *r == "MDOWN middle", "mdown");
+  }
+  check(is_error(format_mouse_button("MDOWN", "leftish"), 400), "mdown_bad");
+  {
+    auto r = format_hscroll(-3);
+    check(r.has_value() && *r == "HSCROLL -3", "hscroll");
+  }
+  {
+    auto r = format_press_key("A");
+    check(r.has_value() && *r == "KEY shift+a", "press_A");
+  }
+  {
+    auto r = format_key_hold("KDOWN", "ctrl");
+    check(r.has_value() && *r == "KDOWN ctrl", "kdown_ctrl");
+  }
+  check(is_error(format_press_key("volumeup"), 400), "no_hid");
+  {
+    auto r = format_hotkey({"ctrl", "c"});
+    check(r.has_value() && *r == "HOTKEY ctrl+c", "hotkey");
+  }
+  {
+    auto r = format_key("home");
+    check(r.has_value() && *r == "KEY home", "key_home");
+  }
 
   return failures == 0 ? 0 : 1;
 }

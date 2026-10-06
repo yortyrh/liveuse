@@ -1,0 +1,9 @@
+{
+  "name": "mcp-mouse",
+  "private": true,
+  "version": "0.3.0",
+  "scripts": {
+    "web": "pnpm --filter liveuse dev",
+    "test:web": "pnpm --filter liveuse test -- --run"
+  }
+}
