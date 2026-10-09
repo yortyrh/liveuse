@@ -1,7 +1,7 @@
 ---
 name: upload-firmware
 description: >-
-  Flash the Live Use Seeed XIAO SAMD21 firmware with firmware/upload.sh.
+  Flash the LiveUse Seeed XIAO SAMD21 firmware with firmware/upload.sh.
   Use when the user asks to upload, flash, program, or subir the XIAO,
   or to run upload.sh.
 ---
@@ -15,7 +15,7 @@ Do not open the port at 1200 yourself first, call bossac directly, or send a USB
 ## Before running
 
 1. The Seeed XIAO must be plugged in by USB. `/dev/cu.usbmodem*` should exist, or `ioreg` should show `Seeeduino XIAO`.
-2. Nothing else may hold that port. `liveuse` and a serial monitor block the 1200 touch. If `lsof` shows a holder, stop and tell the user; do not kill it unless they asked.
+2. Nothing else may hold that port. A serial monitor blocks the 1200 touch. If `lsof` shows a holder, stop and tell the user; do not kill it unless they asked.
 
 ## Run
 

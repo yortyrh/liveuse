@@ -6,15 +6,4 @@
 *.map
 .DS_Store
 .idea/
-
-# Rust workspace
-target/
-
-# Desktop app
-node_modules
-dist
-apps/desktop/src-tauri/binaries/
-host/build/
-.cache/
-build/
 .cursor/

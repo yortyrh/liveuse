@@ -1,4 +1,4 @@
-# Live Use firmware
+# LiveUse firmware
 
 Version **0.4.0**. PlatformIO sketch for the **Seeed XIAO SAMD21** (`ATSAMD21G18A`).
 
@@ -8,13 +8,13 @@ One USB Type-C cable enumerates three interfaces:
 - HID keyboard, boot keyboard
 - CDC serial, the command plane
 
-A single Arduino `loop()` reads one CDC line and runs it. There is no RTOS. TinyUSB is pumped by the core `yield()` inside `delay()` and `Serial`. The CDC banner is `=== Live Use ===`.
+A single Arduino `loop()` reads one CDC line and runs it. There is no RTOS. TinyUSB is pumped by the core `yield()` inside `delay()` and `Serial`. The CDC banner is `=== LiveUse ===`.
 
 `STATUS` answers `OK uptime_ms=<ms> fw=0.4.0`.
 
 ## Flash
 
-Close anything that holds the CDC port first. `liveuse` and a serial monitor block the reset.
+Close anything that holds the CDC port first. A serial monitor blocks the reset.
 
 ```sh
 cd firmware

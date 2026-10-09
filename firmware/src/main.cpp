@@ -1,5 +1,5 @@
 /**
- * Live Use — Seeeduino XIAO / XIAO SAMD21
+ * LiveUse — Seeeduino XIAO / XIAO SAMD21
  *
  * USB composite on the same Type-C:
  *   - HID mouse (relative reports; MOVE has no extra delay)
@@ -81,7 +81,7 @@ static void printHelp() {
 
 static void printBanner() {
   Serial.println();
-  Serial.println(F("=== Live Use ==="));
+  Serial.println(F("=== LiveUse ==="));
   Serial.println(F("USB: composite HID mouse + keyboard + CDC serial"));
   Serial.println(F("Motion: MOVE glides in small steps"));
   Serial.println(F("================"));
