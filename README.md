@@ -14,10 +14,10 @@ The image is `firmware/.pio/build/seeed_xiao/firmware.bin`.
 
 ## Flash
 
-Plug in the XIAO and close anything holding its CDC port, then:
+Plug in the XIAO, then:
 
 ```sh
-firmware/upload.sh
+firmware/scripts/flash
 ```
 
-`upload.sh` compiles the `seeed_xiao` environment and uploads. The CDC commands, the 1200-baud bootloader reset, and the file layout are in `firmware/README.md`.
+It compiles, finds the board, and uploads with `pio`, which restarts the board at 1200 baud. The CDC commands and the file layout are in `firmware/README.md`.

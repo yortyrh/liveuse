@@ -14,21 +14,21 @@ A single Arduino `loop()` reads one CDC line and runs it. There is no RTOS. Tiny
 
 ## Flash
 
-Close anything that holds the CDC port first. A serial monitor blocks the reset.
+Plug in the XIAO and run:
 
 ```sh
 cd firmware
-./upload.sh
+scripts/flash
 ```
 
-`upload.sh` compiles the `seeed_xiao` environment and uploads. `scripts/settle_upload.py` chooses the XIAO port and skips Bluetooth. It reads the USB product id of `Seeeduino XIAO`:
+It finds the board on its own. If another program has the serial port open, it stops and names that program. The upload itself is `pio run -t upload`. The `seeed_xiao` board manifest has `upload.use_1200bps_touch`, so pio opens that port at 1200 baud and waits for the bootloader. `scripts/upload_bossac.py` waits for that USB port to settle and retries the page write, which otherwise dies mid-transfer on macOS.
+
+The USB product id of `Seeeduino XIAO` shows which mode the board is in:
 
 | `idProduct` | Meaning |
 |-------------|---------|
 | `32815` (`0x802F`) | The sketch is running |
 | `47` (`0x002F`) | SAM-BA bootloader |
-
-When the sketch is running, the script opens that CDC port at **1200 baud** and closes it. TinyUSB reboots into the bootloader when DTR drops while the line rate is already 1200. If the product id is already `47`, it flashes without that touch. `scripts/upload_bossac.py` retries the page write after the bootloader USB settles.
 
 After a successful flash the board resets and `idProduct` returns to `32815`.
 
@@ -64,9 +64,10 @@ Lines end in LF or CRLF. The command word is case-insensitive. Motion and key ac
 ## Layout
 
 ```
-upload.sh                 — compile, then upload
-scripts/settle_upload.py  — pick the XIAO port and enter the bootloader
-scripts/upload_bossac.py  — retry bossac after USB settles
+scripts/flash             — compile, then upload through pio
+scripts/flash.py          — finds the board and checks that its port is free
+scripts/hid_count.py      — compile TinyUSB with two HID interfaces, and retry bossac
+scripts/upload_bossac.py  — wait for the bootloader USB, then retry a failed page write
 src/main.cpp              — USB init, CDC parse, command dispatch
 src/motion.cpp            — relative mouse glide, click, and wheel
 src/keyboard.cpp          — TYPE, KEY, KDOWN, KUP, HOTKEY

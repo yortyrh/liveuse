@@ -1,0 +1,5 @@
+#!/bin/sh
+# Compile and flash the connected XIAO. No serial port argument.
+set -eu
+cd "$(dirname "$0")"
+exec python3 ./flash.py "$@"
