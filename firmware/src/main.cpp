@@ -59,6 +59,7 @@ static void trimTrailing(char *s) {
 
 static char s_line[kLineBufSize];
 static size_t s_lineLen = 0;
+static bool s_lineOverflow = false;
 
 static void printHelp() {
   Serial.println(F("Commands (line-oriented, LF/CRLF):"));
@@ -306,14 +307,22 @@ static void pollSerial() {
     }
     if (c == '\n') {
       s_line[s_lineLen] = '\0';
-      handleLine(s_line);
+      if (!s_lineOverflow) {
+        handleLine(s_line);
+      }
       s_lineLen = 0;
+      s_lineOverflow = false;
+      continue;
+    }
+    if (s_lineOverflow) {
       continue;
     }
     if (s_lineLen + 1 < kLineBufSize) {
       s_line[s_lineLen++] = static_cast<char>(c);
     } else {
+      // The rest of an overlong line must not run as a command.
       s_lineLen = 0;
+      s_lineOverflow = true;
       Serial.println(F("ERR line too long"));
     }
   }
@@ -368,6 +377,7 @@ void loop() {
   if (open && !wasOpen) {
     delay(20);
     s_lineLen = 0;
+    s_lineOverflow = false;
     printBanner();
   }
   wasOpen = open;

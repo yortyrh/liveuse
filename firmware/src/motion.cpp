@@ -51,14 +51,16 @@ static bool sendWhenReady(Adafruit_USBD_HID &hid, bool (*send)(Adafruit_USBD_HID
 }
 
 static uint8_t s_clickButtons = 0;
+static uint8_t s_heldButtons = 0;
 static int8_t s_scrollNotch = 0;
 
+// A click must not release buttons held by MDOWN.
 static bool sendClickPress(Adafruit_USBD_HID &hid) {
-  return hid.mouseButtonPress(0, s_clickButtons);
+  return hid.mouseReport(0, static_cast<uint8_t>(s_heldButtons | s_clickButtons), 0, 0, 0, 0);
 }
 
 static bool sendClickRelease(Adafruit_USBD_HID &hid) {
-  return hid.mouseButtonRelease(0);
+  return hid.mouseReport(0, s_heldButtons, 0, 0, 0, 0);
 }
 
 static bool sendScrollNotch(Adafruit_USBD_HID &hid) {
@@ -84,6 +86,7 @@ void motionClick(Adafruit_USBD_HID &hid, uint8_t buttons, uint8_t times) {
 }
 
 void motionSetButtons(Adafruit_USBD_HID &hid, uint8_t buttons) {
+  s_heldButtons = buttons;
   for (int attempt = 0; attempt < 5; ++attempt) {
     wakeHid();
     if (hid.ready() && hid.mouseReport(0, buttons, 0, 0, 0, 0)) {

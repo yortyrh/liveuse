@@ -112,7 +112,7 @@ static void remove_usage(uint8_t usage) {
   if (usage == 0) {
     return;
   }
-  for (auto key : g_keys) {
+  for (auto &key : g_keys) {
     if (key == usage) {
       key = 0;
     }
