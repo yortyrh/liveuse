@@ -111,7 +111,11 @@ impl AppState {
     }
 
     pub fn set_operation(&self, text: Option<String>) {
-        if text.is_none() && self.control_depth.load(Ordering::SeqCst) > 0 {
+        let depth = self.control_depth.load(Ordering::SeqCst);
+        if text.is_none() && depth > 0 {
+            return;
+        }
+        if text.is_some() && depth == 0 {
             return;
         }
         if let Ok(mut slot) = self.operation.lock() {
