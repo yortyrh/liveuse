@@ -105,14 +105,15 @@ static void handleLine(char *line) {
     ++rest;
   }
   cmd[i] = '\0';
-  while (*rest && isspace(static_cast<unsigned char>(*rest))) {
-    ++rest;
+
+  // Payload is everything after one separator space, spaces included; do not trim it.
+  if (strcmp(cmd, "TYPE") == 0) {
+    keyboardType(g_usbKeyboard, *rest == ' ' ? rest + 1 : rest);
+    return;
   }
 
-  // Payload is everything after the first run of spaces; do not trim it.
-  if (strcmp(cmd, "TYPE") == 0) {
-    keyboardType(g_usbKeyboard, rest);
-    return;
+  while (*rest && isspace(static_cast<unsigned char>(*rest))) {
+    ++rest;
   }
 
   // rest points into line; trimming the tail never moves it.
@@ -126,7 +127,7 @@ static void handleLine(char *line) {
   if (strcmp(cmd, "STATUS") == 0) {
     Serial.print(F("OK uptime_ms="));
     Serial.print(millis());
-    Serial.println(F(" fw=0.4.0"));
+    Serial.println(F(" fw=0.4.1"));
     return;
   }
 

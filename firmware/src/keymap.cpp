@@ -151,7 +151,7 @@ Chord parse_chord(const char *text) {
         std::strcmp(token, "winleft") == 0 || std::strcmp(token, "commandleft") == 0) {
       bit = 0x08;
       canon = "cmd";
-    } else if (std::strcmp(token, "winright") == 0 || std::strcmp(token, "cmdrigh") == 0 ||
+    } else if (std::strcmp(token, "winright") == 0 || std::strcmp(token, "cmdright") == 0 ||
                std::strcmp(token, "commandright") == 0) {
       bit = 0x80;
       canon = "winright";
@@ -250,7 +250,7 @@ bool modifier_token(const char *token, uint8_t *bit, const char **canon) {
     *canon = "cmd";
     return true;
   }
-  if (std::strcmp(token, "winright") == 0 || std::strcmp(token, "cmdrigh") == 0 ||
+  if (std::strcmp(token, "winright") == 0 || std::strcmp(token, "cmdright") == 0 ||
       std::strcmp(token, "commandright") == 0) {
     *bit = 0x80;
     *canon = "winright";

@@ -1,6 +1,6 @@
 # LiveUse firmware
 
-Version **0.4.0**. PlatformIO sketch for the **Seeed XIAO SAMD21** (`ATSAMD21G18A`).
+Version **0.4.1**. PlatformIO sketch for the **Seeed XIAO SAMD21** (`ATSAMD21G18A`).
 
 One USB Type-C cable enumerates three interfaces:
 
@@ -10,7 +10,7 @@ One USB Type-C cable enumerates three interfaces:
 
 A single Arduino `loop()` reads one CDC line and runs it. There is no RTOS. TinyUSB is pumped by the core `yield()` inside `delay()` and `Serial`. The CDC banner is `=== LiveUse ===`.
 
-`STATUS` answers `OK uptime_ms=<ms> fw=0.4.0`.
+`STATUS` answers `OK uptime_ms=<ms> fw=0.4.1`.
 
 ## Flash
 
@@ -53,7 +53,7 @@ Lines end in LF or CRLF. The command word is case-insensitive. Motion and key ac
 | `MUP left\|right\|middle` | Release a button |
 | `SCROLL <steps>` | Vertical wheel. Positive is up, negative is down |
 | `HSCROLL <steps>` | Horizontal wheel. Positive is right, negative is left |
-| `TYPE <ascii>` | Type printable ASCII (`0x20`–`0x7E`). Success prints nothing |
+| `TYPE <ascii>` | Type printable ASCII (`0x20`–`0x7E`). One space separates the verb; any further spaces are typed. Success prints nothing |
 | `KEY <chord>` | Tap one key, optional modifiers joined by `+` |
 | `KDOWN <key>` | Hold a key |
 | `KUP <key>` | Release a key |
