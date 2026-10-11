@@ -107,10 +107,6 @@ export function perform(target: Target, action: string, args: Record<string, unk
   return invoke<Record<string, unknown>>("perform", { target, action, args });
 }
 
-export function previewFrame(target: Target) {
-  return invoke<string>("preview_frame", { target });
-}
-
 export function requestAbort() {
   return invoke<void>("request_abort");
 }

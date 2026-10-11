@@ -1,5 +1,5 @@
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,14 +11,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AgentChat } from "@/components/agent-chat";
 import { ModelPicker } from "@/components/model-picker";
-import { CaptureView } from "@/components/capture-view";
 import { runAgent, type TranscriptLine } from "@/lib/agent";
 import { STOP_SHORTCUT } from "@/lib/shortcut";
 import {
   deviceStatus,
   llmProviders,
   llmSettings,
-  previewFrame,
   regenerateToken,
   requestAbort,
   saveLlm,
@@ -46,11 +44,12 @@ export function MainWindow() {
   const [mode, setMode] = useState<"local" | "remote">("local");
   const [remoteUrl, setRemoteUrl] = useState("");
   const [remoteToken, setRemoteToken] = useState("");
-  const [frame, setFrame] = useState<string | null>(null);
+  const [remoteSession, setRemoteSession] = useState<{ url: string; token: string } | null>(null);
   const [lines, setLines] = useState<TranscriptLine[]>([]);
   const [draft, setDraft] = useState("");
   const [running, setRunning] = useState(false);
   const cancelled = useMemo(() => ({ current: false }), []);
+  const runId = useRef(0);
 
   useEffect(() => {
     const refresh = () => {
@@ -75,38 +74,11 @@ export function MainWindow() {
   }, []);
 
   const target: Target = useMemo(() => {
-    if (mode === "remote") {
-      return { kind: "remote", url: remoteUrl.trim(), token: remoteToken.trim() };
+    if (mode === "remote" && remoteSession) {
+      return { kind: "remote", url: remoteSession.url, token: remoteSession.token };
     }
     return { kind: "local" };
-  }, [mode, remoteUrl, remoteToken]);
-
-  useEffect(() => {
-    if (mode !== "remote" || !remoteUrl.trim() || !remoteToken.trim()) {
-      setFrame(null);
-      return;
-    }
-    let alive = true;
-    const tick = () => {
-      void previewFrame(target)
-        .then((jpeg) => {
-          if (alive) {
-            setFrame(`data:image/jpeg;base64,${jpeg}`);
-          }
-        })
-        .catch(() => {
-          if (alive) {
-            setFrame(null);
-          }
-        });
-    };
-    tick();
-    const timer = window.setInterval(tick, 1000);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-    };
-  }, [mode, remoteUrl, remoteToken, target]);
+  }, [mode, remoteSession]);
 
   const selectedUrl = share?.urls[urlIndex] ?? share?.urls[0] ?? "";
   const mcpConfig = selectedUrl
@@ -129,19 +101,40 @@ export function MainWindow() {
     toast.success(`${label} copied`);
   }
 
+  function connectRemote() {
+    const url = remoteUrl.trim();
+    const token = remoteToken.trim();
+    if (!url || !token) {
+      return;
+    }
+    setRemoteSession({ url, token });
+  }
+
+  function disconnectRemote() {
+    runId.current += 1;
+    if (running) {
+      cancelled.current = true;
+      void requestAbort();
+    }
+    setRunning(false);
+    setRemoteSession(null);
+    setLines([]);
+    setDraft("");
+  }
+
   async function send() {
     const prompt = draft.trim();
     if (!prompt || running) {
       return;
     }
-    if (mode === "remote" && (!remoteUrl.trim() || !remoteToken.trim())) {
-      toast.error("The remote machine needs a URL and a token");
+    if (mode === "remote" && !remoteSession) {
       return;
     }
     if (llm.needsKey && !llm.hasApiKey) {
       toast.error("Save the API key on this Mac");
       return;
     }
+    const id = ++runId.current;
     setDraft("");
     setRunning(true);
     cancelled.current = false;
@@ -151,9 +144,16 @@ export function MainWindow() {
         history: lines,
         prompt,
         cancelled,
-        onUpdate: setLines,
+        onUpdate: (next) => {
+          if (runId.current === id) {
+            setLines(next);
+          }
+        },
       });
     } catch (error) {
+      if (runId.current !== id) {
+        return;
+      }
       const text = error instanceof Error ? error.message : String(error);
       toast.error(text);
       setLines((current) => [
@@ -161,7 +161,9 @@ export function MainWindow() {
         { id: crypto.randomUUID(), role: "assistant", text },
       ]);
     } finally {
-      setRunning(false);
+      if (runId.current === id) {
+        setRunning(false);
+      }
     }
   }
 
@@ -292,8 +294,24 @@ export function MainWindow() {
                 .catch((error: unknown) => toast.error(String(error)))
             }
           />
-          {mode === "remote" ? (
-            <div className="grid gap-2 md:grid-cols-[1fr_1fr]">
+          {mode === "local" ? (
+            <p className="text-sm text-muted-foreground">
+              While this machine is being controlled, the card stays at the bottom left. {STOP_SHORTCUT} stops and opens the app again.
+            </p>
+          ) : null}
+          {mode === "remote" && remoteSession ? (
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="truncate text-sm font-medium">{remoteSession.url}</span>
+                <Badge>Connected</Badge>
+              </div>
+              <Button variant="outline" onClick={disconnectRemote}>
+                Disconnect
+              </Button>
+            </div>
+          ) : null}
+          {mode === "remote" && !remoteSession ? (
+            <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
               <Input
                 aria-label="Remote URL"
                 placeholder="http://192.168.1.20:8765"
@@ -306,31 +324,25 @@ export function MainWindow() {
                 value={remoteToken}
                 onChange={(event) => setRemoteToken(event.target.value)}
               />
+              <Button
+                disabled={!remoteUrl.trim() || !remoteToken.trim()}
+                onClick={connectRemote}
+              >
+                Connect
+              </Button>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              While this machine is being controlled, the card stays at the bottom left. {STOP_SHORTCUT} stops and opens the app again.
-            </p>
+            <div className="flex min-h-0 flex-1 flex-col">
+              <AgentChat
+                lines={lines}
+                draft={draft}
+                running={running}
+                onDraft={setDraft}
+                onSend={() => void send()}
+                onStop={() => void requestAbort()}
+              />
+            </div>
           )}
-          <div className={mode === "remote" ? "grid min-h-0 flex-1 gap-3 md:grid-cols-[0.9fr_1.1fr]" : "flex min-h-0 flex-1 flex-col"}>
-            {mode === "remote" ? (
-              <div className="flex min-h-64 items-center justify-center overflow-hidden rounded-xl bg-muted p-2 ring-1 ring-foreground/10">
-                {frame ? (
-                  <CaptureView src={frame} alt="Latest capture from the remote machine" />
-                ) : (
-                  <p className="px-4 text-sm text-muted-foreground">No capture yet. Check the URL and the token.</p>
-                )}
-              </div>
-            ) : null}
-            <AgentChat
-              lines={lines}
-              draft={draft}
-              running={running}
-              onDraft={setDraft}
-              onSend={() => void send()}
-              onStop={() => void requestAbort()}
-            />
-          </div>
         </TabsContent>
       </Tabs>
     </div>

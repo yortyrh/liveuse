@@ -61,6 +61,9 @@ pub struct AppState {
     pub token: RwLock<String>,
     pub port: u16,
     pub abort: AtomicBool,
+    /// True for the whole `agent::run`, including remote calls and model waits.
+    /// Those do not hold `action_lock`, so Stop must leave `abort` set until the run ends.
+    pub agent_running: AtomicBool,
     pub control_depth: AtomicUsize,
     pub operation: Mutex<Option<String>>,
     pub held_keys: Mutex<Vec<String>>,
@@ -222,7 +225,9 @@ pub fn show_main(app: &AppHandle) {
 pub async fn execute(state: &AppState, name: &str, args: &Value) -> Result<Value, ActionError> {
     let _guard = state.action_lock.lock().await;
     if state.abort.load(Ordering::SeqCst) {
-        state.abort.store(false, Ordering::SeqCst);
+        if !state.agent_running.load(Ordering::SeqCst) {
+            state.abort.store(false, Ordering::SeqCst);
+        }
         release_held(state).await;
         return Err(ActionError::Aborted);
     }
@@ -234,7 +239,11 @@ pub async fn execute(state: &AppState, name: &str, args: &Value) -> Result<Value
         state.set_operation(Some(operation_label(name, args)));
     }
     let result = dispatch(state, name, args).await;
-    let aborted = state.abort.swap(false, Ordering::SeqCst);
+    let aborted = if state.agent_running.load(Ordering::SeqCst) {
+        state.abort.load(Ordering::SeqCst)
+    } else {
+        state.abort.swap(false, Ordering::SeqCst)
+    };
     if aborted {
         release_held(state).await;
     }
@@ -642,7 +651,9 @@ fn note_held(state: &AppState, line: &str) {
 pub async fn finish_abort_if_idle(state: &AppState) {
     if let Ok(_guard) = state.action_lock.try_lock() {
         release_held(state).await;
-        state.abort.store(false, Ordering::SeqCst);
+        if !state.agent_running.load(Ordering::SeqCst) {
+            state.abort.store(false, Ordering::SeqCst);
+        }
         state.set_operation(None);
     }
 }

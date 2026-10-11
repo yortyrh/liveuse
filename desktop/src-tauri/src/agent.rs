@@ -38,7 +38,7 @@ pub async fn run(
     history: Vec<Turn>,
     prompt: String,
 ) -> Result<(), String> {
-    state.abort.store(false, Ordering::SeqCst);
+    let _guard = RunningGuard::enter(state);
     let key = state
         .llm_api_key
         .read()
@@ -101,7 +101,26 @@ async fn run_agent(
         })
         .stream();
     let mut segment: Option<TextSegment> = None;
-    while let Some(item) = stream.next().await {
+    loop {
+        let item = tokio::select! {
+            biased;
+            item = stream.next() => item,
+            () = crate::wait_abort(&state.abort) => {
+                if let Some(current) = segment.take() {
+                    current.finish(state);
+                }
+                return finish_error(state, "aborted");
+            }
+        };
+        let Some(item) = item else {
+            break;
+        };
+        if state.abort.load(Ordering::SeqCst) {
+            if let Some(current) = segment.take() {
+                current.finish(state);
+            }
+            return finish_error(state, "aborted");
+        }
         match item {
             Ok(MultiTurnStreamItem::StreamAssistantItem(Item::Event(event))) => match event {
                 StreamEvent::Start {
@@ -237,6 +256,25 @@ fn finish_error(state: &AppState, err: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err(err.to_string())
+    }
+}
+
+struct RunningGuard<'a> {
+    state: &'a AppState,
+}
+
+impl<'a> RunningGuard<'a> {
+    fn enter(state: &'a AppState) -> Self {
+        state.abort.store(false, Ordering::SeqCst);
+        state.agent_running.store(true, Ordering::SeqCst);
+        Self { state }
+    }
+}
+
+impl Drop for RunningGuard<'_> {
+    fn drop(&mut self) {
+        self.state.agent_running.store(false, Ordering::SeqCst);
+        self.state.abort.store(false, Ordering::SeqCst);
     }
 }
 
@@ -485,7 +523,9 @@ async fn call_tool(
         PerformTarget::Local => execute(state, name, &args)
             .await
             .map_err(|err| tool_error(&err.message()))?,
-        PerformTarget::Remote { url, token } => remote_perform(url, token, name, &args)
+        PerformTarget::Remote { url, token } => {
+            remote_perform(url, token, name, &args, &state.abort)
+        }
             .await
             .map_err(|err| tool_error(&err))?,
     };

@@ -8,7 +8,8 @@ mod protocol;
 mod screen;
 mod vision;
 
-use std::sync::atomic::Ordering;
+use std::future::Future;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
@@ -195,7 +196,9 @@ async fn perform(
         PerformTarget::Local => actions::execute(&state, &action, &args)
             .await
             .map_err(|err| err.message()),
-        PerformTarget::Remote { url, token } => remote_perform(&url, &token, &action, &args).await,
+        PerformTarget::Remote { url, token } => {
+            remote_perform(&url, &token, &action, &args, &state.abort).await
+        }
     }
 }
 
@@ -209,7 +212,7 @@ async fn preview_frame(
             .await
             .map_err(|err| err.message())?,
         PerformTarget::Remote { url, token } => {
-            remote_perform(&url, &token, "screenshot", &json!({})).await?
+            remote_perform(&url, &token, "screenshot", &json!({}), &state.abort).await?
         }
     };
     value
@@ -342,6 +345,7 @@ fn load_state(app: &tauri::AppHandle) -> Result<AppState, Box<dyn std::error::Er
         token: RwLock::new(config.token),
         port: config.port,
         abort: std::sync::atomic::AtomicBool::new(false),
+        agent_running: std::sync::atomic::AtomicBool::new(false),
         control_depth: std::sync::atomic::AtomicUsize::new(0),
         operation: std::sync::Mutex::new(None),
         held_keys: std::sync::Mutex::new(Vec::new()),
@@ -522,6 +526,7 @@ pub(crate) async fn remote_perform(
     token: &str,
     action: &str,
     args: &Value,
+    abort: &AtomicBool,
 ) -> Result<Value, String> {
     let root = api_root(url);
     let endpoint = format!("{root}/v1/{action}");
@@ -538,7 +543,9 @@ pub(crate) async fn remote_perform(
     } else {
         client.post(endpoint).bearer_auth(token).json(args)
     };
-    let response = request.send().await.map_err(|err| err.to_string())?;
+    let response = until_abort(abort, request.send())
+        .await?
+        .map_err(|err| err.to_string())?;
     let status = response.status();
     let content_type = response
         .headers()
@@ -546,7 +553,9 @@ pub(crate) async fn remote_perform(
         .and_then(|value| value.to_str().ok())
         .unwrap_or("")
         .to_string();
-    let bytes = response.bytes().await.map_err(|err| err.to_string())?;
+    let bytes = until_abort(abort, response.bytes())
+        .await?
+        .map_err(|err| err.to_string())?;
     if content_type.contains("image/png") {
         if !status.is_success() {
             return Err(String::from_utf8_lossy(&bytes).into());
@@ -573,6 +582,21 @@ pub(crate) async fn remote_perform(
         return Err(message.to_string());
     }
     Ok(value)
+}
+
+async fn until_abort<T>(abort: &AtomicBool, fut: impl Future<Output = T>) -> Result<T, String> {
+    tokio::pin!(fut);
+    tokio::select! {
+        biased;
+        value = &mut fut => Ok(value),
+        () = wait_abort(abort) => Err("aborted".into()),
+    }
+}
+
+pub(crate) async fn wait_abort(abort: &AtomicBool) {
+    while !abort.load(Ordering::SeqCst) {
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
 }
 
 fn api_root(url: &str) -> String {
