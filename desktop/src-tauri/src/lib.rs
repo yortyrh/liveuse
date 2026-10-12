@@ -470,9 +470,10 @@ fn install_tray(
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
     let menu = Menu::with_items(app, &[&status, &separator, &open, &quit])?;
-    let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/32x32.png"))?;
+    let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/trayTemplate.png"))?;
     let _tray = TrayIconBuilder::with_id("liveuse")
         .icon(icon)
+        .icon_as_template(true)
         .menu(&menu)
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id.as_ref() {
