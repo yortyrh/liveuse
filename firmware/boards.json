@@ -1,0 +1,19 @@
+{
+  "boards": [
+    {
+      "id": "seeed_xiao",
+      "name": "Seeed XIAO SAMD21",
+      "env": "seeed_xiao",
+      "image": ".pio/build/seeed_xiao/firmware.bin",
+      "usb": {
+        "running": { "vid": "0x2886", "pid": "0x802F" },
+        "bootloader": { "vid": "0x2886", "pid": "0x002F" }
+      },
+      "flash": {
+        "protocol": "sam-ba",
+        "enter": "1200bps-touch",
+        "offset": "0x2000"
+      }
+    }
+  ]
+}
