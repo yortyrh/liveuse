@@ -7,4 +7,6 @@
 .DS_Store
 .idea/
 .cursor/
+.superpowers/
+.worktrees/
 __pycache__/
