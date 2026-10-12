@@ -128,7 +128,8 @@ export function ScrollDirection({ connected }: { connected: boolean }) {
   }
 
   async function confirmPointer() {
-    if (decidedRef.current || phaseRef.current !== "probe") {
+    const phase = phaseRef.current;
+    if (decidedRef.current || phase !== "probe") {
       return;
     }
     setPhaseNow("nudge");
