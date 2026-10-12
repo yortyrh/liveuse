@@ -1,6 +1,8 @@
 # Firmware releases
 
-Firmware versions are published to the public repository `yortyrh/liveuse-releases`. That repository has no source code and no desktop app releases. Each version is one GitHub release. The `main` branch holds the latest `manifest.json` and nothing else that the app needs.
+Firmware versions for the ATSAMD21G18A (Seeed XIAO SAMD21) are published to the public repository https://github.com/yortyrh/liveuse-releases. That repository has no source code and no desktop app releases. Each version is one GitHub release. The `main` branch holds the latest `manifest.json` and nothing else that the app needs.
+
+An image for any other microcontroller stays in this private repository. It is uploaded to `yortyrh/liveuse-releases` only when the developer explicitly authorizes that microcontroller.
 
 The tag `firmware-vX.Y.Z` is created only in that repository. This script does not tag or push `yortyrh/liveuse` or `yortyrh/mcp-mouse`. A published version is not replaced. The next version is a new tag.
 
@@ -69,20 +71,20 @@ On Windows, use `python` when `python3` is not on `PATH`.
 }
 ```
 
-`sha256` is the hex digest of the asset. `size` is its length in bytes. `usb` and `flash` are copied from `firmware/boards.json`, so a new board does not need a change to the script.
+`sha256` is the hex digest of the asset. `size` is its length in bytes. `usb` and `flash` are copied from `firmware/boards.json`. Another ATSAMD21G18A board can be added to that catalog without changing the script. A board with a different microcontroller is left out of this publish unless the developer explicitly authorizes that microcontroller for `yortyrh/liveuse-releases`.
 
 The SAMD21 image is the application. `offset` is `0x2000` because that is where the sketch starts. A bossac 1.9 that is run without `--offset` writes at `0x0` and erases the bootloader. The flasher has to pass this offset.
 
 ## Boards
 
-`firmware/boards.json` lists the images to build. Today that is the PlatformIO env `seeed_xiao`. The running sketch uses USB `0x2886`/`0x802F`. The SAM-BA bootloader uses `0x2886`/`0x002F`.
+`firmware/boards.json` lists the images this script builds and uploads. The public entry is the PlatformIO env `seeed_xiao`, the ATSAMD21G18A. The running sketch uses USB `0x2886`/`0x802F`. The SAM-BA bootloader uses `0x2886`/`0x002F`.
 
-The Seeed XIAO ESP32-S3 is not built yet. When a `seeed_xiao_esp32s3` env exists, add an object to the catalog. The update image is `firmware.bin` at `0x10000` (the application), not the bootloader or the partition table. `flash.protocol` is `esptool`. The PlatformIO board manifest on a machine that already has the Espressif platform lists USB `0x2886`/`0x8056` and `0x2886`/`0x0056`, 8MB flash, mode `qio`. Put those values in the catalog when that board is real. The script copies `flash_mode`, `flash_freq`, and `flash_size` through with the rest of `flash`.
+Support for another microcontroller can live in this private repository. Its image stays out of `yortyrh/liveuse-releases`, and out of the catalog this script uploads, until the developer explicitly authorizes that microcontroller. The Seeed XIAO ESP32-S3 is one such board: it is not built yet, and building it does not publish it. When that private image exists, the update file is `firmware.bin` at `0x10000` (the application), not the bootloader or the partition table, and `flash.protocol` is `esptool`. The PlatformIO board manifest on a machine that already has the Espressif platform lists USB `0x2886`/`0x8056` and `0x2886`/`0x0056`, 8MB flash, mode `qio`. Those values describe the board. They do not authorize a public upload. The script copies `flash_mode`, `flash_freq`, and `flash_size` through with the rest of `flash` only for a board that is allowed in this publish.
 
 ## What the app reads later
 
 This repository does not check or flash a board. A later desktop build can do that on Windows, Linux, and macOS from this manifest.
 
-Read `fw=` from `STATUS`. Fetch `manifest.json` over HTTPS. Compare `major.minor.patch` as integers. If the manifest is newer and `usb.running` matches the connected board, download that board's `url` and check `sha256` and `size`. `flash.protocol`, `enter`, and `offset` say how to write the image: for the SAMD21, a 1200 baud pulse, then bossac with `--offset=0x2000`; for the ESP32-S3, once it exists, the application image at `0x10000`. The USB id is matched from the serial port list, which names the port `COM3`, `/dev/ttyACM0`, or `/dev/cu.usbmodem…` depending on the system. An image for a different board is not offered.
+Read `fw=` from `STATUS`. Fetch `manifest.json` over HTTPS. Compare `major.minor.patch` as integers. If the manifest is newer and `usb.running` matches the connected board, download that board's `url` and check `sha256` and `size`. `flash.protocol`, `enter`, and `offset` say how to write the image. For the ATSAMD21G18A that is a 1200 baud pulse, then bossac with `--offset=0x2000`. The manifest lists that microcontroller. An image for another microcontroller is absent unless the developer explicitly authorized publishing it. The USB id is matched from the serial port list, which names the port `COM3`, `/dev/ttyACM0`, or `/dev/cu.usbmodem…` depending on the system. An image for a different board is not offered.
 
 The releases repository has to stay public. A private repository cannot be read without a token.
