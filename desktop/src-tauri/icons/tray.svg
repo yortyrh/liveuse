@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-  <g transform="translate(7 7)" fill="#000000">
+  <g transform="translate(1.35 1.94) scale(1.704)" fill="#000000">
     <path d="M3 1.5 L3 12.5 L6 9.5 L8.2 14 L10 13.1 L7.8 8.6 L11.5 8.6 Z"/>
     <polygon points="12.2,11.2 12.7,12.6 14.2,13.1 12.7,13.6 12.2,15 11.7,13.6 10.2,13.1 11.7,12.6"/>
   </g>
