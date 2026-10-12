@@ -1,19 +1,24 @@
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { catalogModels, type LlmModel, type LlmProvider, type LlmSettings } from "@/lib/backend";
 
 export function ModelPicker({
   saved,
   providers,
+  providersNote = "Loading providers…",
   apiKey,
+  formId = "llm-model-form",
   onApiKey,
+  onCanSave,
   onSave,
 }: {
   saved: LlmSettings;
   providers: LlmProvider[];
+  providersNote?: string;
   apiKey: string;
+  formId?: string;
   onApiKey: (value: string) => void;
+  onCanSave?: (value: boolean) => void;
   onSave: (draft: { provider: string; baseUrl: string; model: string; apiKey: string }) => void;
 }) {
   const companyListId = useId();
@@ -30,7 +35,6 @@ export function ModelPicker({
   const [modelOpen, setModelOpen] = useState(false);
   const [modelActive, setModelActive] = useState(0);
   const [modelEditing, setModelEditing] = useState(false);
-  const [endpointOpen, setEndpointOpen] = useState(false);
 
   useEffect(() => {
     setProvider(saved.provider);
@@ -63,13 +67,6 @@ export function ModelPicker({
   const selected = providers.find((item) => item.id === provider);
   const needsKey = selected?.needsKey ?? saved.needsKey;
   const companyLabel = selected?.label ?? provider;
-
-  useEffect(() => {
-    const option = providers.find((item) => item.id === saved.provider);
-    if (option && saved.baseUrl.replace(/\/$/, "") !== option.baseUrl.replace(/\/$/, "")) {
-      setEndpointOpen(true);
-    }
-  }, [providers, saved.provider, saved.baseUrl]);
 
   const companyOptions = useMemo(
     () => filterNamed(providers.map((item) => ({ id: item.id, name: item.label })), companyEditing ? companyQuery : ""),
@@ -105,8 +102,21 @@ export function ModelPicker({
 
   const canSave = model.trim().length > 0 && (!needsKey || saved.hasApiKey || apiKey.trim().length > 0);
 
+  useEffect(() => {
+    onCanSave?.(canSave);
+  }, [canSave, onCanSave]);
+
   return (
-    <div className="grid gap-2">
+    <form
+      id={formId}
+      className="grid gap-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (canSave) {
+          save();
+        }
+      }}
+    >
       <div className="grid gap-2 md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
         <div className="relative">
           <Input
@@ -118,6 +128,8 @@ export function ModelPicker({
             aria-activedescendant={companyOpen && companyOptions[companyIndex] ? `${companyListId}-${companyIndex}` : undefined}
             value={companyEditing ? companyQuery : companyLabel}
             placeholder="Provider"
+            spellCheck={false}
+            autoCapitalize="off"
             onChange={(event) => {
               setCompanyQuery(event.target.value);
               setCompanyEditing(true);
@@ -158,7 +170,7 @@ export function ModelPicker({
           {companyOpen ? (
             <OptionList id={companyListId} label="Providers">
               {providers.length === 0 ? (
-                <li className="px-2 py-2 text-sm text-muted-foreground">Loading providers…</li>
+                <li className="px-2 py-2 text-sm text-muted-foreground">{providersNote}</li>
               ) : companyOptions.length === 0 ? (
                 <li className="px-2 py-2 text-sm text-muted-foreground">No provider match.</li>
               ) : (
@@ -187,6 +199,8 @@ export function ModelPicker({
             aria-activedescendant={modelOpen && modelOptions[modelIndex] ? `${modelListId}-${modelIndex}` : undefined}
             value={model}
             placeholder="Model"
+            spellCheck={false}
+            autoCapitalize="off"
             onChange={(event) => {
               setModel(event.target.value);
               setModelEditing(true);
@@ -248,38 +262,31 @@ export function ModelPicker({
           ) : null}
         </div>
       </div>
-      <div className="grid items-center gap-2 md:grid-cols-[minmax(0,12rem)_auto_auto] md:justify-start">
+      <label className="grid gap-1.5">
+        <span className="text-sm font-medium">API key</span>
         <Input
           type="password"
           aria-label="API key"
           autoComplete="off"
-          placeholder={saved.hasApiKey ? "Key saved on this Mac" : "API key"}
+          placeholder={saved.hasApiKey ? "Key saved on this Mac" : "Paste an API key"}
           value={apiKey}
           onChange={(event) => onApiKey(event.target.value)}
         />
-        <Button type="button" variant="outline" disabled={!canSave} onClick={() => save()}>
-          Save
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          aria-expanded={endpointOpen}
-          aria-controls="llm-endpoint"
-          onClick={() => setEndpointOpen((open) => !open)}
-        >
-          Endpoint
-        </Button>
-      </div>
-      {endpointOpen ? (
+      </label>
+      <label className="grid gap-1.5">
+        <span className="text-sm font-medium">Endpoint</span>
         <Input
           id="llm-endpoint"
           aria-label="Endpoint"
+          spellCheck={false}
           value={baseUrl}
           onChange={(event) => setBaseUrl(event.target.value)}
         />
-      ) : null}
-    </div>
+        <span className="text-xs text-muted-foreground">
+          Address for this company. Change it only for a proxy or a local server.
+        </span>
+      </label>
+    </form>
   );
 }
 

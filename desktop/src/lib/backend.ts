@@ -1,5 +1,21 @@
 import { invoke } from "@tauri-apps/api/core";
 
+const DEV_LLM_ORIGIN = "http://127.0.0.1:1429";
+
+function inDesktopApp() {
+  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+async function devJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${DEV_LLM_ORIGIN}${path}`, init);
+  const text = await response.text();
+  const body = text ? (JSON.parse(text) as { error?: string }) : null;
+  if (!response.ok) {
+    throw new Error(body?.error || `Request failed (${response.status})`);
+  }
+  return body as T;
+}
+
 export type DeviceStatus = {
   connected: boolean;
   path?: string | null;
@@ -55,14 +71,23 @@ export function regenerateToken() {
 }
 
 export function llmSettings() {
+  if (!inDesktopApp()) {
+    return devJson<LlmSettings>("/llm/settings");
+  }
   return invoke<LlmSettings>("llm_settings");
 }
 
 export function llmProviders() {
+  if (!inDesktopApp()) {
+    return devJson<LlmProvider[]>("/llm/providers");
+  }
   return invoke<LlmProvider[]>("llm_providers");
 }
 
 export function catalogModels(provider: string) {
+  if (!inDesktopApp()) {
+    return devJson<LlmModel[]>(`/llm/catalog?provider=${encodeURIComponent(provider)}`);
+  }
   return invoke<LlmModel[]>("llm_catalog", { provider });
 }
 
@@ -95,11 +120,19 @@ export function scrollProbeNudge() {
 }
 
 export function saveLlm(provider: string, baseUrl: string, model: string, apiKey: string) {
+  const key = apiKey.trim() ? apiKey : null;
+  if (!inDesktopApp()) {
+    return devJson<void>("/llm/settings", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ provider, baseUrl, model, apiKey: key }),
+    });
+  }
   return invoke<void>("save_llm", {
     provider,
     baseUrl,
     model,
-    apiKey: apiKey.trim() ? apiKey : null,
+    apiKey: key,
   });
 }
 

@@ -2,7 +2,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -11,6 +11,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AgentChat } from "@/components/agent-chat";
 import { ModelPicker } from "@/components/model-picker";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { runAgent, type TranscriptLine } from "@/lib/agent";
 import {
   deviceStatus,
@@ -39,7 +48,10 @@ export function MainWindow() {
     needsKey: true,
   });
   const [providers, setProviders] = useState<LlmProvider[]>([]);
+  const [providersNote, setProvidersNote] = useState("Loading providers…");
   const [apiKey, setApiKey] = useState("");
+  const [modelOpen, setModelOpen] = useState(false);
+  const [canSaveModel, setCanSaveModel] = useState(false);
   const [mode, setMode] = useState<"local" | "remote">("local");
   const [remoteUrl, setRemoteUrl] = useState("");
   const [remoteToken, setRemoteToken] = useState("");
@@ -57,7 +69,12 @@ export function MainWindow() {
     };
     refresh();
     void llmSettings().then(setLlm).catch(() => undefined);
-    void llmProviders().then(setProviders).catch(() => undefined);
+    void llmProviders()
+      .then((items) => {
+        setProviders(items);
+        setProvidersNote(items.length === 0 ? "No providers." : "");
+      })
+      .catch(() => setProvidersNote("Couldn't load providers."));
     const timer = window.setInterval(refresh, 2000);
     const unlisten = listen<DeviceStatus>("device-status", (event) => {
       setDevice(event.payload);
@@ -79,6 +96,7 @@ export function MainWindow() {
     return { kind: "local" };
   }, [mode, remoteSession]);
 
+  const companyLabel = providers.find((item) => item.id === llm.provider)?.label ?? llm.provider;
   const selectedUrl = share?.urls[urlIndex] ?? share?.urls[0] ?? "";
   const mcpConfig = selectedUrl
     ? JSON.stringify(
@@ -107,6 +125,17 @@ export function MainWindow() {
       return;
     }
     setRemoteSession({ url, token });
+  }
+
+  function clearChat() {
+    runId.current += 1;
+    cancelled.current = true;
+    if (running) {
+      void requestAbort();
+    }
+    setRunning(false);
+    setLines([]);
+    setDraft("");
   }
 
   function disconnectRemote() {
@@ -276,23 +305,49 @@ export function MainWindow() {
             <Button variant={mode === "remote" ? "default" : "outline"} onClick={() => setMode("remote")}>
               Remote
             </Button>
-            <span className="text-xs text-muted-foreground">{llm.model}</span>
+            <p className="min-w-0 text-sm">
+              <span className="text-muted-foreground">{companyLabel}</span>
+              <span className="px-1.5 text-muted-foreground" aria-hidden>
+                ·
+              </span>
+              <span className="font-medium">{llm.model}</span>
+            </p>
+            <Button variant="outline" onClick={() => setModelOpen(true)}>
+              Change
+            </Button>
           </div>
-          <ModelPicker
-            saved={llm}
-            providers={providers}
-            apiKey={apiKey}
-            onApiKey={setApiKey}
-            onSave={(draft) =>
-              void saveLlm(draft.provider, draft.baseUrl, draft.model, draft.apiKey)
-                .then(async () => {
-                  setApiKey("");
-                  setLlm(await llmSettings());
-                  toast.success("Model saved");
-                })
-                .catch((error: unknown) => toast.error(String(error)))
-            }
-          />
+          <Dialog open={modelOpen} onOpenChange={setModelOpen}>
+            <DialogContent initialFocus={false}>
+              <DialogHeader>
+                <DialogTitle>Change model</DialogTitle>
+                <DialogDescription>The company and model used for this chat.</DialogDescription>
+              </DialogHeader>
+              <ModelPicker
+                saved={llm}
+                providers={providers}
+                providersNote={providersNote}
+                apiKey={apiKey}
+                onApiKey={setApiKey}
+                onCanSave={setCanSaveModel}
+                onSave={(next) =>
+                  void saveLlm(next.provider, next.baseUrl, next.model, next.apiKey)
+                    .then(async () => {
+                      setApiKey("");
+                      setLlm(await llmSettings());
+                      setModelOpen(false);
+                      toast.success("Model saved");
+                    })
+                    .catch((error: unknown) => toast.error(String(error)))
+                }
+              />
+              <DialogFooter className="border-t border-border pt-4">
+                <DialogClose className={buttonVariants({ variant: "outline" })}>Cancel</DialogClose>
+                <Button type="submit" form="llm-model-form" disabled={!canSaveModel}>
+                  Save
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           {mode === "remote" && remoteSession ? (
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2">
@@ -334,6 +389,7 @@ export function MainWindow() {
                 onDraft={setDraft}
                 onSend={() => void send()}
                 onStop={() => void requestAbort()}
+                onClear={clearChat}
               />
             </div>
           )}

@@ -15,6 +15,7 @@ export function AgentChat({
   onDraft,
   onSend,
   onStop,
+  onClear,
 }: {
   lines: TranscriptLine[];
   draft: string;
@@ -22,6 +23,7 @@ export function AgentChat({
   onDraft: (value: string) => void;
   onSend: () => void;
   onStop: () => void;
+  onClear: () => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLTextAreaElement>(null);
@@ -40,9 +42,20 @@ export function AgentChat({
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2">
         <h2 className="text-sm font-medium">Chat</h2>
-        <p className="sr-only" role="status">
-          {announcement}
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="sr-only" role="status">
+            {announcement}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={lines.length === 0 && !draft.trim() && !running}
+            onClick={onClear}
+          >
+            Clear
+          </Button>
+        </div>
       </div>
       <div
         ref={scroller}

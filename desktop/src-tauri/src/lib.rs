@@ -1,6 +1,8 @@
 mod actions;
 mod agent;
 mod device;
+#[cfg(debug_assertions)]
+mod dev_api;
 mod http_api;
 mod llm;
 mod mcp;
@@ -83,6 +85,10 @@ fn device_status(state: tauri::State<Arc<AppState>>) -> DeviceView {
 
 #[tauri::command]
 fn llm_settings(state: tauri::State<Arc<AppState>>) -> Value {
+    settings_json(&state)
+}
+
+pub(crate) fn settings_json(state: &AppState) -> Value {
     let provider = state
         .llm_provider
         .read()
@@ -162,6 +168,16 @@ async fn scroll_probe_nudge(state: tauri::State<'_, Arc<AppState>>) -> Result<()
 #[tauri::command]
 fn save_llm(
     state: tauri::State<Arc<AppState>>,
+    provider: String,
+    base_url: String,
+    model: String,
+    api_key: Option<String>,
+) -> Result<(), String> {
+    write_llm(&state, provider, base_url, model, api_key)
+}
+
+pub(crate) fn write_llm(
+    state: &AppState,
     provider: String,
     base_url: String,
     model: String,
@@ -310,6 +326,8 @@ pub fn run() {
                 let _ = overlay.set_content_protected(true);
                 let _ = overlay.hide();
             }
+            #[cfg(debug_assertions)]
+            dev_api::spawn(Arc::clone(&state));
             let poll_state = Arc::clone(&state);
             tauri::async_runtime::spawn(async move {
                 loop {
