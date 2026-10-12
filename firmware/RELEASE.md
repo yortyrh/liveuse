@@ -1,6 +1,6 @@
 # Firmware releases
 
-Firmware versions for the ATSAMD21G18A (Seeed XIAO SAMD21) are published to the public repository https://github.com/yortyrh/liveuse-releases. That repository has no source code and no desktop app releases. Each version is one GitHub release. The `main` branch holds the latest `manifest.json` and nothing else that the app needs.
+Firmware versions for the ATSAMD21G18A (Seeed XIAO SAMD21) are published to the public repository https://github.com/yortyrh/liveuse-releases. That repository has no source code. Firmware releases use tags `firmware-v*` and `manifest.json` on `main`. Desktop app releases use tags `app-v*` and `apps.json` on `main`; this script does not write that file. Each firmware version is one GitHub release. The desktop app reads `manifest.json` for firmware.
 
 An image for any other microcontroller stays in this private repository. It is uploaded to `yortyrh/liveuse-releases` only when the developer explicitly authorizes that microcontroller.
 
