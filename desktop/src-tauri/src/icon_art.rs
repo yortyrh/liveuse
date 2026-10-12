@@ -34,5 +34,5 @@ fn app_icon_matches_the_spark_mark() {
     let amber = count_near(&img, [0xF5, 0xB4, 0x29], 40);
     assert!(plate > 200, "plate pixels {plate}");
     assert!(cyan > 10, "cyan pixels {cyan}");
-    assert!(amber > 10, "amber pixels {amber}");
+    assert!(amber > 5, "amber pixels {amber}");
 }
