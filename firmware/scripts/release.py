@@ -247,7 +247,9 @@ def gh_json(args, payload=None):
 
 
 def repo_view(repo):
-    data, proc = gh_json(["repo", "view", repo, "--json", "visibility,defaultBranchRef"])
+    data, proc = gh_json(
+        ["repo", "view", repo, "--json", "visibility,isEmpty,defaultBranchRef"]
+    )
     if data is None:
         message = (proc.stderr or proc.stdout).lower()
         if "not found" in message or "could not resolve" in message:
@@ -256,10 +258,18 @@ def repo_view(repo):
     return data
 
 
+def default_branch(info):
+    ref = info.get("defaultBranchRef") or {}
+    name = ref.get("name")
+    if not isinstance(name, str) or not name.strip():
+        return None
+    return name
+
+
 def require_public_main(repo, info):
     if info.get("visibility") != "PUBLIC":
         fail(f"{repo} is not public. The app has to read the manifest without a token.")
-    branch = (info.get("defaultBranchRef") or {}).get("name")
+    branch = default_branch(info)
     if branch != BRANCH:
         fail(
             f"{repo} uses branch {branch or 'nothing'}. "
@@ -267,9 +277,19 @@ def require_public_main(repo, info):
         )
 
 
+def write_readme(repo):
+    put_contents(
+        repo,
+        "README.md",
+        README_TEXT.encode("utf-8"),
+        "Describe the releases repository.",
+    )
+
+
 def ensure_repo(repo):
     info = repo_view(repo)
-    if info is None:
+    created = info is None
+    if created:
         print(f"Creating {repo}...", file=sys.stderr)
         proc = gh(
             [
@@ -287,14 +307,18 @@ def ensure_repo(repo):
         info = repo_view(repo)
         if info is None:
             fail(f"Created {repo}, but gh repo view cannot see it.")
-        require_public_main(repo, info)
-        put_contents(
-            repo,
-            "README.md",
-            README_TEXT.encode("utf-8"),
-            "Describe the releases repository.",
-        )
-        return
+    if info.get("visibility") != "PUBLIC":
+        fail(f"{repo} is not public. The app has to read the manifest without a token.")
+    # An empty repository has no branch until the first commit. GitHub reports that
+    # branch name as blank, which is not a different default branch.
+    if info.get("isEmpty") or default_branch(info) is None:
+        print(f"{repo} has no commits. Creating {BRANCH}...", file=sys.stderr)
+        write_readme(repo)
+        info = repo_view(repo)
+        if info is None:
+            fail(f"Can't view {repo} after creating {BRANCH}.")
+    elif created:
+        write_readme(repo)
     require_public_main(repo, info)
 
 
@@ -360,7 +384,7 @@ def contents_of(repo, path):
     data, proc = gh_json(["api", f"repos/{repo}/contents/{path}?ref={BRANCH}"])
     if data is None:
         message = (proc.stderr or proc.stdout).lower()
-        if "not found" in message:
+        if "not found" in message or "repository is empty" in message:
             return None
         fail((proc.stderr or proc.stdout).strip() or f"Can't read {path} from {repo}.")
     if data.get("type") != "file" or "content" not in data:
