@@ -1,7 +1,7 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { catalogModels, listLlmModels, type LlmModel, type LlmProvider, type LlmSettings } from "@/lib/backend";
+import { catalogModels, type LlmModel, type LlmProvider, type LlmSettings } from "@/lib/backend";
 
 export function ModelPicker({
   saved,
@@ -16,24 +16,27 @@ export function ModelPicker({
   onApiKey: (value: string) => void;
   onSave: (draft: { provider: string; baseUrl: string; model: string; apiKey: string }) => void;
 }) {
-  const listId = useId();
+  const companyListId = useId();
+  const modelListId = useId();
   const [provider, setProvider] = useState(saved.provider);
   const [baseUrl, setBaseUrl] = useState(saved.baseUrl);
   const [model, setModel] = useState(saved.model);
   const [catalog, setCatalog] = useState<LlmModel[]>([]);
   const [catalogNote, setCatalogNote] = useState("Loading models…");
-  const [account, setAccount] = useState<LlmModel[]>([]);
-  const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(0);
-  const [editing, setEditing] = useState(false);
-  const [loadingAccount, setLoadingAccount] = useState(false);
-  const [accountNote, setAccountNote] = useState("");
+  const [companyOpen, setCompanyOpen] = useState(false);
+  const [companyActive, setCompanyActive] = useState(0);
+  const [companyEditing, setCompanyEditing] = useState(false);
+  const [companyQuery, setCompanyQuery] = useState("");
+  const [modelOpen, setModelOpen] = useState(false);
+  const [modelActive, setModelActive] = useState(0);
+  const [modelEditing, setModelEditing] = useState(false);
   const [endpointOpen, setEndpointOpen] = useState(false);
 
   useEffect(() => {
     setProvider(saved.provider);
     setBaseUrl(saved.baseUrl);
     setModel(saved.model);
+    setCompanyEditing(false);
   }, [saved.provider, saved.baseUrl, saved.model]);
 
   useEffect(() => {
@@ -59,6 +62,7 @@ export function ModelPicker({
 
   const selected = providers.find((item) => item.id === provider);
   const needsKey = selected?.needsKey ?? saved.needsKey;
+  const companyLabel = selected?.label ?? provider;
 
   useEffect(() => {
     const option = providers.find((item) => item.id === saved.provider);
@@ -67,16 +71,32 @@ export function ModelPicker({
     }
   }, [providers, saved.provider, saved.baseUrl]);
 
-  const suggestions = useMemo(
-    () => mergeModels(catalog, account, editing ? model : ""),
-    [catalog, account, model, editing],
+  const companyOptions = useMemo(
+    () => filterNamed(providers.map((item) => ({ id: item.id, name: item.label })), companyEditing ? companyQuery : ""),
+    [providers, companyEditing, companyQuery],
   );
-  const activeIndex = Math.min(active, Math.max(suggestions.length - 1, 0));
+  const modelOptions = useMemo(
+    () => filterModels(catalog, modelEditing ? model : ""),
+    [catalog, model, modelEditing],
+  );
+  const companyIndex = Math.min(companyActive, Math.max(companyOptions.length - 1, 0));
+  const modelIndex = Math.min(modelActive, Math.max(modelOptions.length - 1, 0));
 
-  function choose(id: string) {
+  function chooseCompany(id: string) {
+    const option = providers.find((item) => item.id === id);
+    setProvider(id);
+    setCompanyEditing(false);
+    setCompanyOpen(false);
+    setCompanyQuery("");
+    if (option) {
+      setBaseUrl(option.baseUrl);
+    }
+  }
+
+  function chooseModel(id: string) {
     setModel(id);
-    setEditing(false);
-    setOpen(false);
+    setModelEditing(false);
+    setModelOpen(false);
   }
 
   function save(nextModel = model) {
@@ -87,107 +107,148 @@ export function ModelPicker({
 
   return (
     <div className="grid gap-2">
-      <div className="grid gap-2 md:grid-cols-[11rem_minmax(0,1fr)_minmax(0,12rem)_auto]">
-        <select
-          aria-label="Provider"
-          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-          value={provider}
-          onChange={(event) => {
-            const next = event.target.value;
-            const option = providers.find((item) => item.id === next);
-            setProvider(next);
-            setAccount([]);
-            setAccountNote("");
-            if (option) {
-              setBaseUrl(option.baseUrl);
-            }
-          }}
-        >
-          {providers.length === 0 ? <option value={provider}>{saved.provider}</option> : null}
-          {providers.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.label}
-            </option>
-          ))}
-        </select>
+      <div className="grid gap-2 md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
         <div className="relative">
           <Input
             role="combobox"
-            aria-label="Model"
-            aria-expanded={open}
-            aria-controls={listId}
+            aria-label="Provider"
+            aria-expanded={companyOpen}
+            aria-controls={companyListId}
             aria-autocomplete="list"
-            aria-activedescendant={open && suggestions[activeIndex] ? `${listId}-${activeIndex}` : undefined}
-            value={model}
-            placeholder="Model"
+            aria-activedescendant={companyOpen && companyOptions[companyIndex] ? `${companyListId}-${companyIndex}` : undefined}
+            value={companyEditing ? companyQuery : companyLabel}
+            placeholder="Provider"
             onChange={(event) => {
-              setModel(event.target.value);
-              setEditing(true);
-              setOpen(true);
-              setActive(0);
+              setCompanyQuery(event.target.value);
+              setCompanyEditing(true);
+              setCompanyOpen(true);
+              setCompanyActive(0);
             }}
-            onFocus={() => setOpen(true)}
+            onFocus={(event) => {
+              setCompanyEditing(false);
+              setCompanyQuery("");
+              setCompanyOpen(true);
+              const index = providers.findIndex((item) => item.id === provider);
+              setCompanyActive(index >= 0 ? index : 0);
+              event.currentTarget.select();
+            }}
             onBlur={() => {
-              window.setTimeout(() => setOpen(false), 120);
+              window.setTimeout(() => {
+                setCompanyOpen(false);
+                setCompanyEditing(false);
+              }, 120);
             }}
             onKeyDown={(event) => {
               if (event.key === "ArrowDown") {
                 event.preventDefault();
-                setOpen(true);
-                setActive((index) => Math.min(index + 1, Math.max(suggestions.length - 1, 0)));
+                setCompanyOpen(true);
+                setCompanyActive((index) => Math.min(index + 1, Math.max(companyOptions.length - 1, 0)));
               } else if (event.key === "ArrowUp") {
                 event.preventDefault();
-                setActive((index) => Math.max(index - 1, 0));
-              } else if (event.key === "Enter" && open && suggestions[activeIndex]) {
+                setCompanyActive((index) => Math.max(index - 1, 0));
+              } else if (event.key === "Enter" && companyOpen && companyOptions[companyIndex]) {
                 event.preventDefault();
-                choose(suggestions[activeIndex].id);
+                chooseCompany(companyOptions[companyIndex].id);
               } else if (event.key === "Escape") {
-                setOpen(false);
+                setCompanyOpen(false);
+                setCompanyEditing(false);
               }
             }}
           />
-          {open ? (
-            <ul
-              id={listId}
-              role="listbox"
-              aria-label="Models"
-              className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground"
-            >
-              {suggestions.length === 0 ? (
+          {companyOpen ? (
+            <OptionList id={companyListId} label="Providers">
+              {providers.length === 0 ? (
+                <li className="px-2 py-2 text-sm text-muted-foreground">Loading providers…</li>
+              ) : companyOptions.length === 0 ? (
+                <li className="px-2 py-2 text-sm text-muted-foreground">No provider match.</li>
+              ) : (
+                companyOptions.map((item, index) => (
+                  <Option
+                    key={item.id}
+                    id={`${companyListId}-${index}`}
+                    selected={item.id === provider}
+                    active={index === companyIndex}
+                    onHover={() => setCompanyActive(index)}
+                    onChoose={() => chooseCompany(item.id)}
+                    title={item.name}
+                  />
+                ))
+              )}
+            </OptionList>
+          ) : null}
+        </div>
+        <div className="relative">
+          <Input
+            role="combobox"
+            aria-label="Model"
+            aria-expanded={modelOpen}
+            aria-controls={modelListId}
+            aria-autocomplete="list"
+            aria-activedescendant={modelOpen && modelOptions[modelIndex] ? `${modelListId}-${modelIndex}` : undefined}
+            value={model}
+            placeholder="Model"
+            onChange={(event) => {
+              setModel(event.target.value);
+              setModelEditing(true);
+              setModelOpen(true);
+              setModelActive(0);
+            }}
+            onFocus={(event) => {
+              setModelEditing(false);
+              setModelOpen(true);
+              const index = catalog.findIndex((item) => item.id === model);
+              setModelActive(index >= 0 ? index : 0);
+              event.currentTarget.select();
+            }}
+            onBlur={() => {
+              window.setTimeout(() => {
+                setModelOpen(false);
+                setModelEditing(false);
+              }, 120);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setModelOpen(true);
+                setModelActive((index) => Math.min(index + 1, Math.max(modelOptions.length - 1, 0)));
+              } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setModelActive((index) => Math.max(index - 1, 0));
+              } else if (event.key === "Enter" && modelOpen && modelOptions[modelIndex]) {
+                event.preventDefault();
+                chooseModel(modelOptions[modelIndex].id);
+              } else if (event.key === "Escape") {
+                setModelOpen(false);
+                setModelEditing(false);
+              }
+            }}
+          />
+          {modelOpen ? (
+            <OptionList id={modelListId} label="Models">
+              {modelOptions.length === 0 ? (
                 <li className="px-2 py-2 text-sm text-muted-foreground">
                   {catalogNote || "No catalog match. The typed id is still used."}
                 </li>
               ) : (
-                suggestions.map((item, index) => (
-                  <li key={item.id} role="presentation">
-                    <button
-                      id={`${listId}-${index}`}
-                      type="button"
-                      role="option"
-                      aria-selected={item.id === model}
-                      className={
-                        index === activeIndex
-                          ? "flex w-full items-center justify-between gap-3 rounded-md bg-accent px-2 py-1.5 text-left text-sm"
-                          : "flex w-full items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
-                      }
-                      onMouseDown={(event) => event.preventDefault()}
-                      onMouseEnter={() => setActive(index)}
-                      onClick={() => choose(item.id)}
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate">{item.name}</span>
-                        {item.name !== item.id ? (
-                          <span className="block truncate text-xs text-muted-foreground">{item.id}</span>
-                        ) : null}
-                      </span>
-                      {item.image ? <span className="shrink-0 text-xs text-muted-foreground">Vision</span> : null}
-                    </button>
-                  </li>
+                modelOptions.map((item, index) => (
+                  <Option
+                    key={item.id}
+                    id={`${modelListId}-${index}`}
+                    selected={item.id === model}
+                    active={index === modelIndex}
+                    onHover={() => setModelActive(index)}
+                    onChoose={() => chooseModel(item.id)}
+                    title={item.name}
+                    detail={item.name !== item.id ? item.id : undefined}
+                    badge={item.image ? "Vision" : undefined}
+                  />
                 ))
               )}
-            </ul>
+            </OptionList>
           ) : null}
         </div>
+      </div>
+      <div className="grid items-center gap-2 md:grid-cols-[minmax(0,12rem)_auto_auto] md:justify-start">
         <Input
           type="password"
           aria-label="API key"
@@ -199,8 +260,6 @@ export function ModelPicker({
         <Button type="button" variant="outline" disabled={!canSave} onClick={() => save()}>
           Save
         </Button>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
           variant="ghost"
@@ -211,29 +270,6 @@ export function ModelPicker({
         >
           Endpoint
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={loadingAccount || (needsKey && !saved.hasApiKey && !apiKey.trim())}
-          onClick={() => {
-            setLoadingAccount(true);
-            setAccountNote("");
-            void listLlmModels(provider, baseUrl, apiKey)
-              .then((models) => {
-                setAccount(models);
-                setAccountNote(
-                  models.length === 0 ? "This account returned no chat models." : `Loaded ${models.length} models from this account.`,
-                );
-                setOpen(true);
-              })
-              .catch((error: unknown) => {
-                setAccountNote(error instanceof Error ? error.message : String(error));
-              })
-              .finally(() => setLoadingAccount(false));
-          }}
-        >
-          {loadingAccount ? "Loading" : "Load models"}
-        </Button>
       </div>
       {endpointOpen ? (
         <Input
@@ -243,33 +279,92 @@ export function ModelPicker({
           onChange={(event) => setBaseUrl(event.target.value)}
         />
       ) : null}
-      {accountNote ? (
-        <p className="text-xs text-muted-foreground" role="status">
-          {accountNote}
-        </p>
-      ) : null}
     </div>
   );
 }
 
-function mergeModels(catalog: LlmModel[], account: LlmModel[], query: string): LlmModel[] {
-  const byId = new Map<string, LlmModel>();
-  for (const model of account) {
-    byId.set(model.id, model);
+function OptionList({ id, label, children }: { id: string; label: string; children: ReactNode }) {
+  return (
+    <ul
+      id={id}
+      role="listbox"
+      aria-label={label}
+      className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground"
+    >
+      {children}
+    </ul>
+  );
+}
+
+function Option({
+  id,
+  selected,
+  active,
+  title,
+  detail,
+  badge,
+  onHover,
+  onChoose,
+}: {
+  id: string;
+  selected: boolean;
+  active: boolean;
+  title: string;
+  detail?: string;
+  badge?: string;
+  onHover: () => void;
+  onChoose: () => void;
+}) {
+  return (
+    <li role="presentation">
+      <button
+        id={id}
+        type="button"
+        role="option"
+        aria-selected={selected}
+        className={optionClass(active)}
+        onMouseDown={(event) => event.preventDefault()}
+        onMouseEnter={onHover}
+        onClick={onChoose}
+      >
+        <span className="min-w-0">
+          <span className="block truncate">{title}</span>
+          {detail ? <span className="block truncate text-xs text-muted-foreground">{detail}</span> : null}
+        </span>
+        {badge ? <span className="shrink-0 text-xs text-muted-foreground">{badge}</span> : null}
+      </button>
+    </li>
+  );
+}
+
+function optionClass(active: boolean) {
+  const layout = "flex w-full items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left text-sm";
+  if (active) {
+    return `${layout} bg-accent`;
   }
-  for (const model of catalog) {
-    byId.set(model.id, model);
-  }
+  return `${layout} hover:bg-accent`;
+}
+
+function filterNamed(items: { id: string; name: string }[], query: string) {
   const needle = query.trim().toLowerCase();
-  return [...byId.values()]
-    .filter((model) => {
+  if (!needle) {
+    return items;
+  }
+  return items.filter(
+    (item) => item.id.toLowerCase().includes(needle) || item.name.toLowerCase().includes(needle),
+  );
+}
+
+function filterModels(catalog: LlmModel[], query: string): LlmModel[] {
+  const needle = query.trim().toLowerCase();
+  return catalog
+    .filter((item) => {
       if (!needle) {
         return true;
       }
-      return model.id.toLowerCase().includes(needle) || model.name.toLowerCase().includes(needle);
+      return item.id.toLowerCase().includes(needle) || item.name.toLowerCase().includes(needle);
     })
-    .sort((left, right) => rank(left) - rank(right) || left.name.localeCompare(right.name))
-    .slice(0, 12);
+    .sort((left, right) => rank(left) - rank(right) || left.name.localeCompare(right.name));
 }
 
 function rank(model: LlmModel) {
