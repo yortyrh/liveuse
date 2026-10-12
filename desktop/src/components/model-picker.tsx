@@ -66,8 +66,6 @@ export function ModelPicker({
       setEndpointOpen(true);
     }
   }, [providers, saved.provider, saved.baseUrl]);
-  const dirty =
-    provider !== saved.provider || baseUrl !== saved.baseUrl || model !== saved.model || apiKey.trim().length > 0;
 
   const suggestions = useMemo(
     () => mergeModels(catalog, account, editing ? model : ""),
@@ -86,11 +84,6 @@ export function ModelPicker({
   }
 
   const canSave = model.trim().length > 0 && (!needsKey || saved.hasApiKey || apiKey.trim().length > 0);
-  const status = dirty
-    ? "Not saved yet."
-    : needsKey && !saved.hasApiKey
-      ? "Add an API key. It stays in the app config on this Mac."
-      : "Saved on this Mac.";
 
   return (
     <div className="grid gap-2">
@@ -250,9 +243,11 @@ export function ModelPicker({
           onChange={(event) => setBaseUrl(event.target.value)}
         />
       ) : null}
-      <p className="text-xs text-muted-foreground" role="status">
-        {accountNote || `${status} Search the model field. Vision models can see the screen.`}
-      </p>
+      {accountNote ? (
+        <p className="text-xs text-muted-foreground" role="status">
+          {accountNote}
+        </p>
+      ) : null}
     </div>
   );
 }

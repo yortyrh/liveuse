@@ -12,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { AgentChat } from "@/components/agent-chat";
 import { ModelPicker } from "@/components/model-picker";
 import { runAgent, type TranscriptLine } from "@/lib/agent";
-import { STOP_SHORTCUT } from "@/lib/shortcut";
 import {
   deviceStatus,
   llmProviders,
@@ -294,11 +293,6 @@ export function MainWindow() {
                 .catch((error: unknown) => toast.error(String(error)))
             }
           />
-          {mode === "local" ? (
-            <p className="text-sm text-muted-foreground">
-              While this machine is being controlled, the card stays at the bottom left. {STOP_SHORTCUT} stops and opens the app again.
-            </p>
-          ) : null}
           {mode === "remote" && remoteSession ? (
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2">
