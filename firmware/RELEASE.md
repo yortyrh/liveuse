@@ -4,7 +4,7 @@ Firmware versions for the ATSAMD21G18A (Seeed XIAO SAMD21) are published to the 
 
 An image for any other microcontroller stays in this private repository. It is uploaded to `yortyrh/liveuse-releases` only when the developer explicitly authorizes that microcontroller.
 
-The tag `firmware-vX.Y.Z` is created only in that repository. This script does not tag or push `yortyrh/liveuse` or `yortyrh/mcp-mouse`. A published version is not replaced. The next version is a new tag.
+The script also creates the annotated tag `firmware-vX.Y.Z` in this clone, on the commit that contains that version. The same tag name is created in the public repository by the GitHub release. This script does not push either one to `yortyrh/liveuse` or `yortyrh/mcp-mouse`. A published version is not replaced. The next version is a new tag.
 
 `LIVEUSE_RELEASE_REPO` overrides the repository. It has to look like `owner/name`. The default branch of that repository has to be `main`, because the manifest URL is fixed:
 
@@ -22,20 +22,19 @@ GitHub picks `releases/latest` from the date of the tagged commit, not from the 
 
 ## Publish
 
-`firmware/VERSION`, the `fw=` string in `src/main.cpp`, the version line and the `fw=` example in `README.md`, and the newest `CHANGELOG.md` heading have to be the same `X.Y.Z` string. The working tree has to be clean. The script does not bump the version.
+`firmware/VERSION` is the version that will be published. The newest `CHANGELOG.md` heading has to already be that version. The script rewrites `fw=` and the USB product, mouse, and keyboard names in `src/main.cpp` and `README.md` so they match. When `firmware/VERSION`, `src/main.cpp`, `README.md`, or `CHANGELOG.md` differ from HEAD, it commits those files and tags `firmware-vX.Y.Z`. It does not choose a new version number, and it does not push. Any other uncommitted file stops the script.
 
 From the repository root:
 
 ```sh
-python3 firmware/scripts/release.py --check
 python3 firmware/scripts/release.py
 ```
 
 On Windows, use `python` when `python3` is not on `PATH`.
 
-`--check` compares those version strings and reads `firmware/boards.json`. It does not compile and it does not use the network.
+`--check` compares those version strings and reads `firmware/boards.json`. It does not rewrite files, compile, commit, tag, or use the network.
 
-`--dry-run` compiles every board in the catalog and prints the manifest. It does not upload.
+`--dry-run` compiles every board in the catalog and prints the manifest. It does not rewrite files, commit, tag, or upload. The version strings have to already match.
 
 `--point` copies `manifest.json` from an existing release onto `main`. Use it when the release was created and that write failed. It does not replace `main` with an older version.
 

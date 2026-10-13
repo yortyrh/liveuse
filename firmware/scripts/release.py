@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Publish the current firmware version to the public releases repository.
 
-The source repositories are not tagged and nothing is pushed to them.
-A published version is not replaced. The next version is a new tag.
+Rewrites the version strings in this clone, commits those files, and tags
+firmware-vX.Y.Z. Nothing is pushed. A published version is not replaced.
 """
 
 import argparse
@@ -25,10 +25,19 @@ VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 HEADING_RE = re.compile(r"^## \[(\d+\.\d+\.\d+)\]", re.MULTILINE)
 README_VERSION_RE = re.compile(r"Version \*\*(\d+\.\d+\.\d+)\*\*")
 FW_RE = re.compile(r"fw=(\d+\.\d+\.\d+)")
+MOUSE_RE = re.compile(r"LiveUse Mouse \d+\.\d+\.\d+")
+KEYBOARD_RE = re.compile(r"LiveUse Keyboard \d+\.\d+\.\d+")
+PRODUCT_RE = re.compile(r"LiveUse \d+\.\d+\.\d+")
 REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 HEX_ID_RE = re.compile(r"^0x[0-9A-Fa-f]{4}$")
 README_TEXT = "This repository only publishes LiveUse firmware versions.\n"
+VERSION_FILES = (
+    "firmware/VERSION",
+    "firmware/src/main.cpp",
+    "firmware/README.md",
+    "firmware/CHANGELOG.md",
+)
 
 
 def fail(message):
@@ -50,11 +59,22 @@ def version_tuple(version):
     return tuple(int(part) for part in match.groups())
 
 
-def require_version():
-    version = read_text(FIRMWARE / "VERSION").strip()
-    version_tuple(version)
+def require_phrases(label, text, version, mouse, keyboard, product):
+    checks = (
+        (mouse, f"LiveUse Mouse {version}", MOUSE_RE),
+        (keyboard, f"LiveUse Keyboard {version}", KEYBOARD_RE),
+        (product, f"LiveUse {version}", PRODUCT_RE),
+    )
+    for count, expected, pattern in checks:
+        found = pattern.findall(text)
+        if found != [expected] * count:
+            fail(
+                f"{label} has {found or 'nothing'} where {expected!r} "
+                f"should appear {count} times."
+            )
 
-    sketch = read_text(FIRMWARE / "src" / "main.cpp")
+
+def validate_version_text(version, sketch, readme, changelog):
     sketch_versions = FW_RE.findall(sketch)
     if sketch_versions != [version]:
         fail(
@@ -62,7 +82,6 @@ def require_version():
             f"and firmware/VERSION is {version}."
         )
 
-    readme = read_text(FIRMWARE / "README.md")
     readme_version = README_VERSION_RE.search(readme)
     readme_fw = FW_RE.findall(readme)
     if readme_version is None or readme_version.group(1) != version or readme_fw != [version]:
@@ -72,7 +91,6 @@ def require_version():
             f"and firmware/VERSION is {version}."
         )
 
-    changelog = read_text(FIRMWARE / "CHANGELOG.md")
     headings = HEADING_RE.findall(changelog)
     if not headings or headings[0] != version:
         newest = headings[0] if headings else "nothing"
@@ -80,7 +98,20 @@ def require_version():
             f"The newest firmware/CHANGELOG.md heading is {newest}, "
             f"and firmware/VERSION is {version}."
         )
-    return version, changelog_notes(changelog, version)
+    require_phrases("firmware/src/main.cpp", sketch, version, mouse=1, keyboard=1, product=1)
+    require_phrases("firmware/README.md", readme, version, mouse=1, keyboard=1, product=2)
+    return changelog_notes(changelog, version)
+
+
+def require_version():
+    version = read_text(FIRMWARE / "VERSION").strip()
+    version_tuple(version)
+    return version, validate_version_text(
+        version,
+        read_text(FIRMWARE / "src" / "main.cpp"),
+        read_text(FIRMWARE / "README.md"),
+        read_text(FIRMWARE / "CHANGELOG.md"),
+    )
 
 
 def changelog_notes(changelog, version):
@@ -186,6 +217,143 @@ def require_clean():
         fail(proc.stderr.strip() or "git status failed.")
     if proc.stdout.strip():
         fail("The working tree has uncommitted changes. Commit them before publishing.")
+
+
+def rewrite_identity(label, text, version, fw, mouse, keyboard, product, version_line=False):
+    fw_count = len(FW_RE.findall(text))
+    if fw_count != fw:
+        fail(f"{label} has {fw_count} fw= versions, and it needs {fw}.")
+    if version_line and README_VERSION_RE.search(text) is None:
+        fail(f"{label} needs a Version **x.y.z** line.")
+    for count, kind, pattern in (
+        (mouse, "mouse name", MOUSE_RE),
+        (keyboard, "keyboard name", KEYBOARD_RE),
+        (product, "product name", PRODUCT_RE),
+    ):
+        found = len(pattern.findall(text))
+        if found != count:
+            fail(f"{label} has {found} {kind} versions, and it needs {count}.")
+    if version_line:
+        text = README_VERSION_RE.sub(f"Version **{version}**", text, count=1)
+    text = MOUSE_RE.sub(f"LiveUse Mouse {version}", text)
+    text = KEYBOARD_RE.sub(f"LiveUse Keyboard {version}", text)
+    text = PRODUCT_RE.sub(f"LiveUse {version}", text)
+    return FW_RE.sub(f"fw={version}", text)
+
+
+def write_if_changed(path, text):
+    if read_text(path) == text:
+        return
+    path.write_text(text, encoding="utf-8")
+    print(f"Updated {path.relative_to(ROOT)}.", file=sys.stderr)
+
+
+def git_run(args):
+    proc = subprocess.run(
+        ["git", *args],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout).strip()
+        fail(detail or f"git {' '.join(args)} failed.")
+    return proc
+
+
+def working_tree_paths():
+    proc = git_run(["status", "--porcelain", "--untracked-files=all"])
+    paths = []
+    for line in proc.stdout.splitlines():
+        if len(line) < 4:
+            continue
+        entry = line[3:]
+        if " -> " in entry:
+            entry = entry.split(" -> ", 1)[1]
+        if entry.startswith('"') and entry.endswith('"'):
+            entry = entry[1:-1]
+        paths.append(entry)
+    return paths
+
+
+def commit_version_files(version):
+    paths = working_tree_paths()
+    if not paths:
+        return
+    extra = [path for path in paths if path not in VERSION_FILES]
+    if extra:
+        joined = ", ".join(extra)
+        fail(
+            "The working tree has changes outside the firmware version files. "
+            f"Commit or stash them before publishing: {joined}"
+        )
+    git_run(["add", "--", *paths])
+    git_run(["commit", "-m", f"chore: update firmware to version {version}"])
+    print(f"Committed firmware {version}.", file=sys.stderr)
+
+
+def tag_version(version):
+    tag = f"firmware-v{version}"
+    head = git_run(["rev-parse", "HEAD"]).stdout.strip()
+    proc = subprocess.run(
+        ["git", "rev-parse", "-q", "--verify", f"refs/tags/{tag}^{{}}"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout).strip()
+        if detail:
+            fail(detail)
+    else:
+        target = proc.stdout.strip()
+        if target != head:
+            fail(
+                f"Tag {tag} already points at {target[:12]}, not this commit. "
+                "A published version is not replaced."
+            )
+        print(f"Tag {tag} already points at this commit.", file=sys.stderr)
+        return
+    git_run(["tag", "-a", tag, "-m", f"Firmware {version}"])
+    print(f"Tagged {tag}.", file=sys.stderr)
+
+
+def prepare_source():
+    version = read_text(FIRMWARE / "VERSION").strip()
+    version_tuple(version)
+    sketch_path = FIRMWARE / "src" / "main.cpp"
+    readme_path = FIRMWARE / "README.md"
+    sketch = rewrite_identity(
+        "firmware/src/main.cpp",
+        read_text(sketch_path),
+        version,
+        fw=1,
+        mouse=1,
+        keyboard=1,
+        product=1,
+    )
+    readme = rewrite_identity(
+        "firmware/README.md",
+        read_text(readme_path),
+        version,
+        fw=1,
+        mouse=1,
+        keyboard=1,
+        product=2,
+        version_line=True,
+    )
+    notes = validate_version_text(
+        version,
+        sketch,
+        readme,
+        read_text(FIRMWARE / "CHANGELOG.md"),
+    )
+    write_if_changed(sketch_path, sketch)
+    write_if_changed(readme_path, readme)
+    commit_version_files(version)
+    tag_version(version)
+    require_clean()
+    return version, notes
 
 
 def pio_bin():
@@ -547,19 +715,20 @@ def main(argv=None):
         prog="release.py",
         description=(
             "Publish the current firmware version to the public releases repository. "
-            "The source repositories are not tagged or pushed."
+            "Rewrite the version strings, commit them, and tag firmware-vX.Y.Z. "
+            "Nothing is pushed."
         ),
     )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument(
         "--check",
         action="store_true",
-        help="Check the version strings and the board catalog. Do not compile or upload.",
+        help="Check the version strings and the board catalog. Do not rewrite, commit, tag, or upload.",
     )
     mode.add_argument(
         "--dry-run",
         action="store_true",
-        help="Compile and print the manifest. Do not upload.",
+        help="Compile and print the manifest. Do not rewrite, commit, tag, or upload.",
     )
     mode.add_argument(
         "--point",
@@ -568,23 +737,23 @@ def main(argv=None):
     )
     args = parser.parse_args(argv)
 
-    version, notes = require_version()
     boards = require_catalog()
-    if args.check:
-        names = ", ".join(board["id"] for board in boards)
-        print(f"{version}: {names}")
-        return 0
-    if args.point:
-        point_existing(version)
-        return 0
-
-    if args.dry_run:
+    if args.check or args.dry_run or args.point:
+        version, notes = require_version()
+        if args.check:
+            names = ", ".join(board["id"] for board in boards)
+            print(f"{version}: {names}")
+            return 0
+        if args.point:
+            point_existing(version)
+            return 0
         pio = pio_bin()
         built = [(board, compile_board(pio, board)) for board in boards]
         text, _files = manifest_for(version, notes, release_repo(), built)
         print(text, end="")
         return 0
 
+    version, notes = prepare_source()
     publish(version, notes, boards)
     return 0
 
