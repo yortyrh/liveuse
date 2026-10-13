@@ -110,10 +110,12 @@ async fn firmware_offer(
         view.foreign,
         view.path.as_deref(),
     );
+    let mut cache_hit = false;
     if force != Some(true) {
         if let Ok(guard) = state.firmware_cache.lock() {
             if let Some(hit) = guard.as_ref() {
                 if hit.key == key {
+                    cache_hit = true;
                     return Ok(hit.offer.clone());
                 }
             }
@@ -129,7 +131,8 @@ async fn firmware_offer(
         remember_offer(&state, key, offer.clone());
         return Ok(offer);
     }
-    let board = match firmware::fetch_manifest().await {
+    let fresh = force == Some(true) || !cache_hit;
+    let board = match firmware::fetch_manifest(fresh).await {
         Ok(board) => board,
         Err(err) => {
             let offer = firmware::Offer::check_failed(err);
@@ -337,7 +340,7 @@ async fn flash_firmware(
         return Err("A firmware write is already running.".into());
     }
     let confirmed = confirmed.unwrap_or(false);
-    let board = firmware::fetch_manifest().await?;
+    let board = firmware::fetch_manifest(true).await?;
     let published = board.version;
 
     if state

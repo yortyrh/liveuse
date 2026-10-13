@@ -6,8 +6,9 @@ use serde::Serialize;
 use crate::samba::{APP_OFFSET, APP_ROOM};
 use crate::sha256;
 
+/// `HEAD` tracks the default branch tip. The `/main/` raw URL can lag behind for minutes on the CDN.
 pub const MANIFEST_URL: &str =
-    "https://raw.githubusercontent.com/yortyrh/liveuse-releases/main/manifest.json";
+    "https://raw.githubusercontent.com/yortyrh/liveuse-releases/HEAD/manifest.json";
 pub const PAYMENT_REQUIRED: &str = "payment_required";
 
 const ASSET_HOST: &str = "https://github.com/yortyrh/liveuse-releases/releases/download/";
@@ -214,13 +215,29 @@ pub fn image_matches(bytes: &[u8], expected_sha: &str, expected_size: u64) -> Re
     Ok(())
 }
 
-pub async fn fetch_manifest() -> Result<AcceptedBoard, String> {
+pub async fn fetch_manifest(fresh: bool) -> Result<AcceptedBoard, String> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(20))
         .build()
         .map_err(|err| err.to_string())?;
-    let text = client
-        .get(MANIFEST_URL)
+    let url = if fresh {
+        format!(
+            "{MANIFEST_URL}?t={}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|duration| duration.as_secs())
+                .unwrap_or(0)
+        )
+    } else {
+        MANIFEST_URL.to_string()
+    };
+    let mut request = client.get(&url);
+    if fresh {
+        request = request
+            .header("Cache-Control", "no-cache")
+            .header("Pragma", "no-cache");
+    }
+    let text = request
         .send()
         .await
         .map_err(|err| err.to_string())?
