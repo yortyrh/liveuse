@@ -42,6 +42,10 @@ pub struct DeviceView {
     pub uptime_ms: Option<u64>,
     pub firmware: Option<String>,
     pub error: Option<String>,
+    #[serde(default)]
+    pub bootloader: bool,
+    #[serde(default)]
+    pub foreign: bool,
 }
 
 impl Default for DeviceView {
@@ -52,6 +56,8 @@ impl Default for DeviceView {
             uptime_ms: None,
             firmware: None,
             error: None,
+            bootloader: false,
+            foreign: false,
         }
     }
 }
@@ -75,6 +81,8 @@ pub struct AppState {
     pub listening: AtomicBool,
     pub server_error: Mutex<Option<String>>,
     pub device_info: Mutex<DeviceView>,
+    pub flashing: AtomicBool,
+    pub firmware_cache: Mutex<Option<crate::firmware::OfferCache>>,
     pub llm_base_url: RwLock<String>,
     pub llm_model: RwLock<String>,
     pub llm_provider: RwLock<String>,
@@ -150,6 +158,10 @@ impl AppState {
             if let Some(item) = item.as_ref() {
                 let text = if view.connected {
                     "✓ XIAO connected"
+                } else if view.bootloader {
+                    "● Bootloader"
+                } else if view.foreign {
+                    "● Other firmware"
                 } else {
                     "○ No device"
                 };

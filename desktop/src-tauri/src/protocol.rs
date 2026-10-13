@@ -320,7 +320,10 @@ fn sleep_secs(seconds: f64) -> Result<Option<Step>, String> {
 }
 
 pub fn plan_key_down(key: &str) -> Result<Step, String> {
-    Ok(cdc(format!("KDOWN {}", held_key_name(token_of(key)?)), false))
+    Ok(cdc(
+        format!("KDOWN {}", held_key_name(token_of(key)?)),
+        false,
+    ))
 }
 
 pub fn plan_key_up(key: &str) -> Result<Step, String> {
@@ -878,8 +881,14 @@ mod tests {
             )
         };
         assert_eq!(chord(&["command", ","]), vec!["KEY cmd+comma".to_string()]);
-        assert_eq!(chord(&["command", "+"]), vec!["KEY cmd+shift+equal".to_string()]);
-        assert_eq!(chord(&["command", "?"]), vec!["KEY cmd+shift+slash".to_string()]);
+        assert_eq!(
+            chord(&["command", "+"]),
+            vec!["KEY cmd+shift+equal".to_string()]
+        );
+        assert_eq!(
+            chord(&["command", "?"]),
+            vec!["KEY cmd+shift+slash".to_string()]
+        );
         assert_eq!(
             chord(&["command", "shift", "/"]),
             vec!["KEY cmd+shift+slash".to_string()]
@@ -905,7 +914,10 @@ mod tests {
     fn held_plus_is_spelled_out_and_press_waits_for_typing() {
         assert_eq!(
             lines_of(&[plan_key_down("+").unwrap(), plan_key_up("+").unwrap()]),
-            vec!["KDOWN shift+equal".to_string(), "KUP shift+equal".to_string()]
+            vec![
+                "KDOWN shift+equal".to_string(),
+                "KUP shift+equal".to_string()
+            ]
         );
         assert_eq!(
             lines_of(&plan_press("a", 1, 0.0).unwrap()),

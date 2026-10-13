@@ -5,13 +5,13 @@
 use std::sync::Arc;
 
 use axum::Json;
+use axum::Router;
 use axum::body::Body;
 use axum::extract::{Query, Request, State};
 use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use axum::Router;
 use serde::Deserialize;
 use serde_json::json;
 
@@ -55,7 +55,13 @@ async fn settings(State(state): State<Arc<AppState>>) -> impl IntoResponse {
 }
 
 async fn save(State(state): State<Arc<AppState>>, Json(body): Json<SaveBody>) -> Response {
-    match write_llm(&state, body.provider, body.base_url, body.model, body.api_key) {
+    match write_llm(
+        &state,
+        body.provider,
+        body.base_url,
+        body.model,
+        body.api_key,
+    ) {
         Ok(()) => Json(json!({ "ok": true })).into_response(),
         Err(err) => error(err),
     }

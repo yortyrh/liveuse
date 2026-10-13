@@ -23,6 +23,8 @@ import {
 import { runAgent, type TranscriptLine } from "@/lib/agent";
 import {
   deviceStatus,
+  firmwareOffer,
+  flashFirmware,
   llmProviders,
   llmSettings,
   regenerateToken,
@@ -30,6 +32,8 @@ import {
   saveLlm,
   shareInfo,
   type DeviceStatus,
+  type FirmwareOffer,
+  type FlashProgress,
   type LlmProvider,
   type LlmSettings,
   type ShareInfo,
@@ -38,6 +42,12 @@ import {
 
 export function MainWindow() {
   const [device, setDevice] = useState<DeviceStatus>({ connected: false });
+  const [offer, setOffer] = useState<FirmwareOffer>({ state: "none" });
+  const [flashing, setFlashing] = useState(false);
+  const [progress, setProgress] = useState<FlashProgress | null>(null);
+  const [confirmForeign, setConfirmForeign] = useState(false);
+  const [firstSetup, setFirstSetup] = useState(false);
+  const [flashError, setFlashError] = useState<string | null>(null);
   const [share, setShare] = useState<ShareInfo | null>(null);
   const [urlIndex, setUrlIndex] = useState(0);
   const [llm, setLlm] = useState<LlmSettings>({
@@ -82,12 +92,33 @@ export function MainWindow() {
     const abortListen = listen("agent-abort", () => {
       cancelled.current = true;
     });
+    const progressListen = listen<FlashProgress>("flash-progress", (event) => {
+      if (event.payload.phase === "first-setup") {
+        setFirstSetup(true);
+      }
+      setProgress(event.payload);
+    });
     return () => {
       window.clearInterval(timer);
       void unlisten.then((stop) => stop());
       void abortListen.then((stop) => stop());
+      void progressListen.then((stop) => stop());
     };
   }, []);
+
+  useEffect(() => {
+    if (flashing) {
+      return;
+    }
+    void firmwareOffer()
+      .then((next) => {
+        setOffer(next);
+      })
+      .catch((error: unknown) => {
+        const text = error instanceof Error ? error.message : String(error);
+        setOffer({ state: "checkFailed", message: text });
+      });
+  }, [device.connected, device.firmware, device.bootloader, device.foreign, device.path, flashing]);
 
   const target: Target = useMemo(() => {
     if (mode === "remote" && remoteSession) {
@@ -112,6 +143,43 @@ export function MainWindow() {
         2,
       )
     : "";
+
+  async function writeFirmware(confirmed: boolean) {
+    if (flashing) {
+      return;
+    }
+    setConfirmForeign(false);
+    setFirstSetup(false);
+    setFlashing(true);
+    setFlashError(null);
+    setProgress({ phase: "prepare", percent: 0 });
+    try {
+      const report = await flashFirmware(confirmed);
+      if (report.outcome === "confirm") {
+        setConfirmForeign(true);
+        return;
+      }
+      if (report.outcome === "written") {
+        toast.success(report.firstSetup ? "First setup: firmware written" : "Firmware written");
+      } else if (report.message) {
+        toast.message(report.message);
+      }
+      setFlashError(null);
+    } catch (error) {
+      const text = error instanceof Error ? error.message : String(error);
+      if (text === "payment_required") {
+        setFlashError("Installing the first firmware will require a purchase.");
+      } else {
+        toast.error(text);
+      }
+    } finally {
+      setFlashing(false);
+      setProgress(null);
+      void firmwareOffer(true)
+        .then(setOffer)
+        .catch(() => undefined);
+    }
+  }
 
   async function copy(value: string, label: string) {
     await navigator.clipboard.writeText(value);
@@ -205,7 +273,15 @@ export function MainWindow() {
           </p>
         </div>
         <Badge variant={device.connected ? "default" : "secondary"}>
-          {device.connected ? "XIAO connected" : "No device"}
+          {flashing
+            ? "Updating"
+            : device.connected
+              ? "XIAO connected"
+              : device.bootloader
+                ? "Bootloader"
+                : device.foreign
+                  ? "Other firmware"
+                  : "No device"}
         </Badge>
       </header>
       <Tabs defaultValue="device" className="min-h-0 flex-1">
@@ -221,7 +297,18 @@ export function MainWindow() {
               <CardDescription>Mouse and keyboard over the USB cable, commands over the serial port.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-2 text-sm">
-              <StatusRow label="Status" value={device.connected ? "Connected" : "Disconnected"} />
+              <StatusRow
+                label="Status"
+                value={
+                  device.connected
+                    ? "Connected"
+                    : device.bootloader
+                      ? "Bootloader"
+                      : device.foreign
+                        ? "Other firmware"
+                        : "Disconnected"
+                }
+              />
               <StatusRow label="Port" value={device.path || "—"} />
               <StatusRow label="Firmware" value={device.firmware || "—"} />
               <StatusRow
@@ -231,8 +318,44 @@ export function MainWindow() {
               <StatusRow label="Service" value={share?.listening ? `listening on port ${share.port}` : "stopped"} />
               {device.error ? <p className="text-destructive">{device.error}</p> : null}
               {share?.serverError ? <p className="text-destructive">{share.serverError}</p> : null}
+              <FirmwareOfferBlock
+                offer={offer}
+                flashing={flashing}
+                progress={progress}
+                firstSetup={firstSetup}
+                flashError={flashError}
+                onCheck={() =>
+                  void firmwareOffer(true)
+                    .then((next) => {
+                      setFlashError(null);
+                      setOffer(next);
+                    })
+                    .catch((error: unknown) => {
+                      const text = error instanceof Error ? error.message : String(error);
+                      setOffer({ state: "checkFailed", message: text });
+                    })
+                }
+                onWrite={() => void writeFirmware(false)}
+                onReplace={() => setConfirmForeign(true)}
+              />
             </CardContent>
           </Card>
+          <Dialog open={confirmForeign} onOpenChange={(open) => !open && setConfirmForeign(false)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Replace the program on this board?</DialogTitle>
+                <DialogDescription>
+                  This board is not running LiveUse. Writing replaces whatever is on it. Continue only if this is the XIAO you mean to overwrite. The pointer and keyboard stop until the board answers again.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose className={buttonVariants({ variant: "outline" })}>Cancel</DialogClose>
+                <Button onClick={() => void writeFirmware(true)} disabled={flashing}>
+                  Replace with LiveUse
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <ScrollDirection connected={device.connected} />
         </TabsContent>
         <TabsContent value="share" className="min-h-0">
@@ -397,6 +520,86 @@ export function MainWindow() {
       </Tabs>
     </div>
   );
+}
+
+function FirmwareOfferBlock({
+  offer,
+  flashing,
+  progress,
+  firstSetup,
+  flashError,
+  onCheck,
+  onWrite,
+  onReplace,
+}: {
+  offer: FirmwareOffer;
+  flashing: boolean;
+  progress: FlashProgress | null;
+  firstSetup: boolean;
+  flashError: string | null;
+  onCheck: () => void;
+  onWrite: () => void;
+  onReplace: () => void;
+}) {
+  if (offer.state === "none" && !flashing && !flashError) {
+    return null;
+  }
+  return (
+    <div className="grid gap-2 border-t border-border pt-3">
+      {flashing ? (
+        <p>
+          {firstSetup ? "First setup. " : ""}
+          {phaseLabel(progress?.phase)} {progress?.percent ?? 0}%
+        </p>
+      ) : null}
+      {offer.message ? <p>{offer.message}</p> : null}
+      {offer.state === "update" && offer.available ? (
+        <p>Published firmware {offer.available} is available.</p>
+      ) : null}
+      {flashError ? <p className="text-destructive">{flashError}</p> : null}
+      <div className="flex flex-wrap gap-2">
+        {offer.state === "update" ? (
+          <Button disabled={flashing} onClick={onWrite}>
+            Update to {offer.available}
+          </Button>
+        ) : null}
+        {offer.state === "bootloader" ? (
+          <Button disabled={flashing} onClick={onWrite}>
+            Write firmware
+          </Button>
+        ) : null}
+        {offer.state === "foreign" ? (
+          <Button variant="secondary" disabled={flashing} onClick={onReplace}>
+            Replace with LiveUse
+          </Button>
+        ) : null}
+        {offer.state === "checkFailed" ? (
+          <Button variant="outline" disabled={flashing} onClick={onCheck}>
+            Check again
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function phaseLabel(phase: string | undefined) {
+  switch (phase) {
+    case "first-setup":
+      return "First setup";
+    case "bootloader":
+      return "Starting the bootloader";
+    case "erase":
+      return "Erasing";
+    case "write":
+      return "Writing";
+    case "verify":
+      return "Verifying";
+    case "reset":
+      return "Restarting";
+    default:
+      return "Preparing";
+  }
 }
 
 function StatusRow({ label, value }: { label: string; value: string }) {

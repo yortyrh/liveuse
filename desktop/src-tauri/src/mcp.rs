@@ -40,11 +40,9 @@ pub const MOVE_TO: &str = "Move the cursor to an absolute point on the size grid
 checked and corrected until the cursor is within about 1 point of it. An omitted axis keeps its current value. \
 duration in seconds animates the path; below 0.1 is instant.";
 
-pub const MOVE: &str =
-    "Move the cursor dx, dy points from where it is, corrected like move_to. Positive dy goes down.";
+pub const MOVE: &str = "Move the cursor dx, dy points from where it is, corrected like move_to. Positive dy goes down.";
 
-pub const CLICK: &str =
-    "Click. With x and y, the cursor first moves there, corrected like move_to. clicks defaults to 1.";
+pub const CLICK: &str = "Click. With x and y, the cursor first moves there, corrected like move_to. clicks defaults to 1.";
 
 pub const SCREENSHOT: &str = "Capture the primary display on the size grid, origin at the top left. \
 With left, top, width and height, only that region comes back, at the same scale: add left and top \
@@ -395,7 +393,11 @@ fn tool_defs() -> Vec<Value> {
         WRITE,
         object(
             &[
-                ("text", "string", "printable ASCII; \\n is Enter, \\t is Tab"),
+                (
+                    "text",
+                    "string",
+                    "printable ASCII; \\n is Enter, \\t is Tab",
+                ),
                 ("interval", "number", "seconds between characters"),
                 ("operation", "string", OPERATION),
             ],

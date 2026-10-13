@@ -1,4 +1,5 @@
 use std::io::{self, ErrorKind};
+use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
@@ -8,25 +9,83 @@ use tokio::sync::oneshot;
 
 use crate::protocol::{DeviceStatus, parse_status};
 
-const VID: u16 = 0x2886;
-const PID: u16 = 0x802F;
+pub const RUNNING_VID: u16 = 0x2886;
+pub const RUNNING_PID: u16 = 0x802F;
+pub const BOOTLOADER_VID: u16 = 0x2886;
+pub const BOOTLOADER_PID: u16 = 0x002F;
 
-pub fn find_xiao() -> Option<String> {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FoundPort {
+    pub path: String,
+    pub serial_number: Option<String>,
+    pub manufacturer: Option<String>,
+    pub product: Option<String>,
+}
+
+/// `Some(true)` when the USB strings are LiveUse, `Some(false)` when they name
+/// another program, `None` when the host did not report either string.
+pub fn liveuse_usb(manufacturer: Option<&str>, product: Option<&str>) -> Option<bool> {
+    let present = [manufacturer, product]
+        .into_iter()
+        .flatten()
+        .filter(|text| !text.is_empty())
+        .collect::<Vec<_>>();
+    if present.is_empty() {
+        return None;
+    }
+    Some(present.iter().any(|text| text.contains("LiveUse")))
+}
+
+pub fn find_running() -> Option<FoundPort> {
+    find_usb(RUNNING_VID, RUNNING_PID)
+}
+
+pub fn find_usb(vid: u16, pid: u16) -> Option<FoundPort> {
     let ports = serialport::available_ports().ok()?;
+    let mut found = Vec::new();
     for port in ports {
         if let serialport::SerialPortType::UsbPort(info) = port.port_type {
-            if info.vid == VID && info.pid == PID {
-                return Some(port.port_name);
+            if info.vid == vid && info.pid == pid {
+                found.push(FoundPort {
+                    path: port.port_name,
+                    serial_number: info.serial_number,
+                    manufacturer: info.manufacturer,
+                    product: info.product,
+                });
             }
         }
     }
-    None
+    found.sort_by_key(|port| callout_rank(&port.path));
+    found.into_iter().next()
+}
+
+pub fn wait_usb(vid: u16, pid: u16, timeout: Duration) -> Option<FoundPort> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        if let Some(port) = find_usb(vid, pid) {
+            return Some(port);
+        }
+        if Instant::now() >= deadline {
+            return None;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
+fn callout_rank(path: &str) -> u8 {
+    if path.contains("/tty.") { 1 } else { 0 }
+}
+
+#[derive(Debug)]
+pub enum OpenFailure {
+    Unavailable(String),
+    NotLiveUse,
 }
 
 enum Job {
     Open {
         path: String,
-        reply: oneshot::Sender<Result<DeviceStatus, String>>,
+        reply: oneshot::Sender<Result<DeviceStatus, OpenFailure>>,
     },
     Close,
     Line {
@@ -65,15 +124,16 @@ impl Device {
         self.broken.load(Ordering::Relaxed)
     }
 
-    pub async fn open(&self, path: &str) -> Result<DeviceStatus, String> {
+    pub async fn open(&self, path: &str) -> Result<DeviceStatus, OpenFailure> {
         let (reply, rx) = oneshot::channel();
         self.tx
             .send(Job::Open {
                 path: path.to_string(),
                 reply,
             })
-            .map_err(|_| "serial port closed".to_string())?;
-        rx.await.map_err(|_| "serial port closed".to_string())?
+            .map_err(|_| OpenFailure::Unavailable("serial port closed".into()))?;
+        rx.await
+            .map_err(|_| OpenFailure::Unavailable("serial port closed".into()))?
     }
 
     pub fn close(&self) {
@@ -110,16 +170,27 @@ fn worker(rx: mpsc::Receiver<Job>, path: Arc<Mutex<Option<String>>>, broken: Arc
             }
             Job::Open { path: next, reply } => {
                 port = None;
-                let opened = open_port(&next).and_then(|mut serial| {
-                    drain(serial.as_mut(), Duration::from_millis(400));
-                    write_line(serial.as_mut(), "STATUS")?;
-                    let line = wait_match(serial.as_mut(), Duration::from_secs(2), |line| {
-                        parse_status(line).is_some()
-                    })?;
-                    let status =
-                        parse_status(&line).ok_or_else(|| format!("STATUS inesperado: {line}"))?;
-                    Ok((serial, status))
-                });
+                let opened =
+                    open_port(&next)
+                        .map_err(OpenFailure::Unavailable)
+                        .and_then(|mut serial| {
+                            drain(serial.as_mut(), Duration::from_millis(400));
+                            write_line(serial.as_mut(), "STATUS")
+                                .map_err(OpenFailure::Unavailable)?;
+                            let line =
+                                wait_match(serial.as_mut(), Duration::from_secs(2), |line| {
+                                    parse_status(line).is_some()
+                                })
+                                .map_err(|err| {
+                                    if err == "device timed out" {
+                                        OpenFailure::NotLiveUse
+                                    } else {
+                                        OpenFailure::Unavailable(err)
+                                    }
+                                })?;
+                            let status = parse_status(&line).ok_or(OpenFailure::NotLiveUse)?;
+                            Ok((serial, status))
+                        });
                 match opened {
                     Ok((serial, status)) => {
                         port = Some(serial);
@@ -256,5 +327,220 @@ fn read_line(
         if buf.len() > 512 {
             return Err("CDC line too long".into());
         }
+    }
+}
+
+/// Identification open. 115200 baud, DTR left low, so this is not the 1200-baud
+/// bootloader touch.
+pub fn read_firmware_version(path: &str) -> Result<Option<String>, String> {
+    let mut port = serialport::new(path, 115_200)
+        .timeout(Duration::from_millis(30))
+        .dtr_on_open(false)
+        .open()
+        .map_err(|err| format!("could not open {path}: {err}"))?;
+    drain(port.as_mut(), Duration::from_millis(200));
+    write_line(port.as_mut(), "STATUS")?;
+    match wait_match(port.as_mut(), Duration::from_secs(2), |line| {
+        parse_status(line).is_some()
+    }) {
+        Ok(line) => Ok(parse_status(&line).map(|status| status.firmware)),
+        Err(err) if err == "device timed out" => Ok(None),
+        Err(err) => Err(err),
+    }
+}
+
+/// After a reset the sketch may not answer STATUS on the first open.
+pub fn read_firmware_version_settled(path: &str) -> Result<Option<String>, String> {
+    let deadline = Instant::now() + Duration::from_secs(4);
+    let mut opened = false;
+    let mut last_open = String::new();
+    while Instant::now() < deadline {
+        match read_firmware_version(path) {
+            Ok(Some(version)) => return Ok(Some(version)),
+            Ok(None) => opened = true,
+            Err(err) => last_open = err,
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    if opened { Ok(None) } else { Err(last_open) }
+}
+
+pub fn sibling_callout(path: &str) -> Option<String> {
+    if let Some(rest) = path.strip_prefix("/dev/cu.") {
+        Some(format!("/dev/tty.{rest}"))
+    } else if let Some(rest) = path.strip_prefix("/dev/tty.") {
+        Some(format!("/dev/cu.{rest}"))
+    } else {
+        None
+    }
+}
+
+pub fn parse_lsof(output: &str, skip_pids: &[u32]) -> Vec<String> {
+    let mut names = Vec::new();
+    let mut pid = None;
+    let mut command = None;
+    let remember =
+        |pid: &mut Option<u32>, command: &mut Option<String>, names: &mut Vec<String>| {
+            let Some(pid) = pid.take() else {
+                *command = None;
+                return;
+            };
+            let Some(command) = command.take() else {
+                return;
+            };
+            if skip_pids.contains(&pid) || names.iter().any(|have| have == &command) {
+                return;
+            }
+            names.push(command);
+        };
+    for line in output.lines() {
+        let Some(kind) = line.chars().next() else {
+            continue;
+        };
+        let value = &line[kind.len_utf8()..];
+        match kind {
+            'p' => {
+                remember(&mut pid, &mut command, &mut names);
+                pid = value.parse().ok();
+            }
+            'c' => command = Some(value.to_string()),
+            _ => {}
+        }
+    }
+    remember(&mut pid, &mut command, &mut names);
+    names
+}
+
+pub fn port_holders(path: &str) -> Vec<String> {
+    let mut paths = vec![path.to_string()];
+    if let Some(sibling) = sibling_callout(path) {
+        paths.push(sibling);
+    }
+    let output = Command::new("lsof")
+        .args(["-n", "-P", "-F", "pc"])
+        .args(&paths)
+        .output();
+    let Ok(output) = output else {
+        return Vec::new();
+    };
+    let text = String::from_utf8_lossy(&output.stdout);
+    parse_lsof(&text, &[std::process::id()])
+}
+
+fn join_names(names: &[String]) -> String {
+    match names {
+        [] => String::new(),
+        [one] => one.clone(),
+        [first, second] => format!("{first} and {second}"),
+        many => {
+            let last = many.last().map(String::as_str).unwrap_or("");
+            format!("{}, and {last}", many[..many.len() - 1].join(", "))
+        }
+    }
+}
+
+pub fn holders_error(paths: &[String]) -> Option<String> {
+    let mut names = Vec::new();
+    for path in paths {
+        for name in port_holders(path) {
+            if !names.iter().any(|have: &String| have == &name) {
+                names.push(name);
+            }
+        }
+    }
+    if names.is_empty() {
+        None
+    } else {
+        Some(format!(
+            "Can't flash: {} has the board port open. Close it and try again.",
+            join_names(&names)
+        ))
+    }
+}
+
+fn serials_compatible(before: &Option<String>, after: &Option<String>) -> bool {
+    match (before, after) {
+        (Some(left), Some(right)) => left == right,
+        _ => true,
+    }
+}
+
+fn endpoint_present(path: &str) -> bool {
+    [find_running(), find_usb(BOOTLOADER_VID, BOOTLOADER_PID)]
+        .into_iter()
+        .flatten()
+        .any(|port| port.path == path)
+}
+
+/// After a software reset, wait until the previous USB device drops and the same
+/// chip comes back as the sketch or the bootloader. A port that never drops did
+/// not reset.
+pub fn wait_reenumerate(previous: &FoundPort) -> Result<(), String> {
+    let drop_deadline = Instant::now() + Duration::from_secs(3);
+    let mut dropped = false;
+    while Instant::now() < drop_deadline {
+        if !endpoint_present(&previous.path) {
+            dropped = true;
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    if !dropped {
+        return Err("The board did not reset.".into());
+    }
+    let back_deadline = Instant::now() + Duration::from_secs(8);
+    while Instant::now() < back_deadline {
+        let found = find_running().or_else(|| find_usb(BOOTLOADER_VID, BOOTLOADER_PID));
+        if let Some(port) = found
+            && serials_compatible(&previous.serial_number, &port.serial_number)
+        {
+            return Ok(());
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    Err("The board did not return.".into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{liveuse_usb, parse_lsof, sibling_callout};
+
+    #[test]
+    fn usb_strings_distinguish_liveuse() {
+        assert_eq!(
+            liveuse_usb(Some("LiveUse"), Some("LiveUse 0.5.1")),
+            Some(true)
+        );
+        assert_eq!(liveuse_usb(None, Some("Seeeduino XIAO")), Some(false));
+        assert_eq!(liveuse_usb(None, None), None);
+        assert_eq!(liveuse_usb(Some(""), Some("")), None);
+    }
+
+    #[test]
+    fn callout_sibling_swaps_cu_and_tty() {
+        assert_eq!(
+            sibling_callout("/dev/cu.usbmodem123"),
+            Some("/dev/tty.usbmodem123".into())
+        );
+        assert_eq!(
+            sibling_callout("/dev/tty.usbmodem123"),
+            Some("/dev/cu.usbmodem123".into())
+        );
+        assert_eq!(sibling_callout("COM3"), None);
+    }
+
+    #[test]
+    fn lsof_names_skip_our_pid_and_repeat() {
+        let output = "\
+p10
+cScreen
+p20
+cpio
+p20
+cpio
+p30
+cLiveUse
+";
+        assert_eq!(parse_lsof(output, &[10, 30]), vec!["pio".to_string()]);
     }
 }

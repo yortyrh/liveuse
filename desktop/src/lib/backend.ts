@@ -22,6 +22,21 @@ export type DeviceStatus = {
   uptime_ms?: number | null;
   firmware?: string | null;
   error?: string | null;
+  bootloader?: boolean;
+  foreign?: boolean;
+};
+
+export type FirmwareOffer = {
+  state: string;
+  current?: string | null;
+  available?: string | null;
+  notes?: string | null;
+  message?: string | null;
+};
+
+export type FlashProgress = {
+  phase: string;
+  percent: number;
 };
 
 export type ShareInfo = {
@@ -60,6 +75,20 @@ export type Target =
 
 export function deviceStatus() {
   return invoke<DeviceStatus>("device_status");
+}
+
+export function firmwareOffer(force = false) {
+  return invoke<FirmwareOffer>("firmware_offer", { force });
+}
+
+export type FlashReport = {
+  outcome: string;
+  message?: string | null;
+  firstSetup?: boolean;
+};
+
+export function flashFirmware(confirmed = false) {
+  return invoke<FlashReport>("flash_firmware", { confirmed });
 }
 
 export function shareInfo() {

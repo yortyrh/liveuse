@@ -124,7 +124,8 @@ async fn run_agent(
         match item {
             Ok(MultiTurnStreamItem::StreamAssistantItem(Item::Event(event))) => match event {
                 StreamEvent::Start {
-                    kind: PartKind::Text, ..
+                    kind: PartKind::Text,
+                    ..
                 } => {
                     if let Some(current) = segment.as_mut() {
                         current.saw_delta = false;
@@ -524,10 +525,10 @@ async fn call_tool(
             .await
             .map_err(|err| tool_error(&err.message()))?,
         PerformTarget::Remote { url, token } => {
-            remote_perform(url, token, name, &args, &state.abort)
+            { remote_perform(url, token, name, &args, &state.abort) }
+                .await
+                .map_err(|err| tool_error(&err))?
         }
-            .await
-            .map_err(|err| tool_error(&err))?,
     };
     if state.abort.load(Ordering::SeqCst) {
         return Err(ToolExecutionError::cancelled("aborted"));

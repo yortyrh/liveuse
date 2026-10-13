@@ -45,7 +45,11 @@ fn app_icon_matches_the_spark_mark() {
 fn tray_template_is_a_black_mask() {
     let svg = std::fs::read_to_string(icons_dir().join("tray.svg")).expect("read tray.svg");
     assert!(svg.contains(r#"M3 1.5 L3 12.5 L6 9.5 L8.2 14 L10 13.1 L7.8 8.6 L11.5 8.6 Z"#));
-    assert!(svg.contains("12.2,11.2 12.7,12.6 14.2,13.1 12.7,13.6 12.2,15 11.7,13.6 10.2,13.1 11.7,12.6"));
+    assert!(
+        svg.contains(
+            "12.2,11.2 12.7,12.6 14.2,13.1 12.7,13.6 12.2,15 11.7,13.6 10.2,13.1 11.7,12.6"
+        )
+    );
     assert!(!svg.to_ascii_lowercase().contains("#3ee0e8"));
     assert!(!svg.to_ascii_lowercase().contains("#f5b429"));
 

@@ -1,13 +1,17 @@
 mod actions;
 mod agent;
-mod device;
+mod bossac;
 #[cfg(debug_assertions)]
 mod dev_api;
+mod device;
+mod firmware;
 mod http_api;
 mod llm;
 mod mcp;
 mod protocol;
+mod samba;
 mod screen;
+mod sha256;
 mod vision;
 
 #[cfg(test)]
@@ -20,7 +24,10 @@ use std::time::Duration;
 
 use actions::{AppState, DeviceView, finish_abort_if_idle, show_main};
 use base64::Engine;
-use device::{Device, find_xiao};
+use device::{
+    BOOTLOADER_PID, BOOTLOADER_VID, Device, OpenFailure, find_running, find_usb, holders_error,
+    liveuse_usb,
+};
 use protocol::parse_status;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -84,6 +91,371 @@ fn device_status(state: tauri::State<Arc<AppState>>) -> DeviceView {
         .lock()
         .map(|slot| slot.clone())
         .unwrap_or_default()
+}
+
+#[tauri::command]
+async fn firmware_offer(
+    state: tauri::State<'_, Arc<AppState>>,
+    force: Option<bool>,
+) -> Result<firmware::Offer, String> {
+    let view = state
+        .device_info
+        .lock()
+        .map(|slot| slot.clone())
+        .unwrap_or_default();
+    let key = firmware::cache_key(
+        view.connected,
+        view.firmware.as_deref(),
+        view.bootloader,
+        view.foreign,
+        view.path.as_deref(),
+    );
+    if force != Some(true) {
+        if let Ok(guard) = state.firmware_cache.lock() {
+            if let Some(hit) = guard.as_ref() {
+                if hit.key == key {
+                    return Ok(hit.offer.clone());
+                }
+            }
+        }
+    }
+    if state.flashing.load(Ordering::SeqCst) {
+        return Ok(firmware::Offer::check_failed(
+            "A firmware write is already running.",
+        ));
+    }
+    if key == "none" {
+        let offer = firmware::Offer::none();
+        remember_offer(&state, key, offer.clone());
+        return Ok(offer);
+    }
+    let board = match firmware::fetch_manifest().await {
+        Ok(board) => board,
+        Err(err) => {
+            let offer = firmware::Offer::check_failed(err);
+            remember_offer(&state, key, offer.clone());
+            return Ok(offer);
+        }
+    };
+    let offer = if view.connected {
+        firmware::offer_for_running(view.firmware.as_deref().unwrap_or(""), &board)
+    } else if view.bootloader {
+        firmware::offer_for_bootloader(&board)
+    } else if view.foreign {
+        firmware::offer_for_foreign(&board)
+    } else {
+        firmware::Offer::none()
+    };
+    remember_offer(&state, key, offer.clone());
+    Ok(offer)
+}
+
+fn remember_offer(state: &AppState, key: String, offer: firmware::Offer) {
+    if let Ok(mut guard) = state.firmware_cache.lock() {
+        *guard = Some(firmware::OfferCache { key, offer });
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FlashReport {
+    outcome: String,
+    message: Option<String>,
+    first_setup: bool,
+}
+
+enum Identify {
+    Stop(FlashReport),
+    Write {
+        kind: firmware::FlashKind,
+        pulse: Option<String>,
+        first_setup: bool,
+    },
+}
+
+fn report(outcome: &str, message: Option<&str>) -> FlashReport {
+    FlashReport {
+        outcome: outcome.into(),
+        message: message.map(str::to_string),
+        first_setup: false,
+    }
+}
+
+fn seen_from_running(port: &device::FoundPort, settle: bool) -> Result<firmware::Seen, String> {
+    if liveuse_usb(port.manufacturer.as_deref(), port.product.as_deref()) == Some(false) {
+        return Ok(firmware::Seen::Foreign);
+    }
+    if let Some(err) = holders_error(&[port.path.clone()]) {
+        return Err(err);
+    }
+    let version = if settle {
+        device::read_firmware_version_settled(&port.path)?
+    } else {
+        device::read_firmware_version(&port.path)?
+    };
+    match version {
+        Some(text) => {
+            let version = firmware::parse_version(&text).ok_or_else(|| {
+                "The firmware version on the board can't be compared.".to_string()
+            })?;
+            Ok(firmware::Seen::LiveUse(version))
+        }
+        None => Ok(firmware::Seen::Foreign),
+    }
+}
+
+fn observe(settle: bool) -> Result<(firmware::Seen, Option<device::FoundPort>), String> {
+    if let Some(port) = find_running() {
+        let seen = seen_from_running(&port, settle)?;
+        return Ok((seen, Some(port)));
+    }
+    if let Some(port) = find_usb(BOOTLOADER_VID, BOOTLOADER_PID) {
+        return Ok((firmware::Seen::Bootloader, Some(port)));
+    }
+    Ok((firmware::Seen::Absent, None))
+}
+
+fn identify(published: firmware::Version, confirmed: bool) -> Result<Identify, String> {
+    let mut tried_leave = false;
+    let mut settle = false;
+    loop {
+        let (seen, port) = observe(settle)?;
+        match firmware::decide(seen, published, confirmed, tried_leave) {
+            firmware::Decision::LeaveBootloader => {
+                let port =
+                    port.ok_or_else(|| "Connect the XIAO before writing firmware.".to_string())?;
+                if let Some(err) = holders_error(&[port.path.clone()]) {
+                    return Err(err);
+                }
+                if samba::leave_bootloader(&port.path).is_err() {
+                    if let Some(held) = holders_error(&[port.path.clone()]) {
+                        return Err(held);
+                    }
+                    return Err(firmware::PHYSICAL_STEPS.into());
+                }
+                if device::wait_reenumerate(&port).is_err() {
+                    return Err(firmware::PHYSICAL_STEPS.into());
+                }
+                tried_leave = true;
+                settle = true;
+            }
+            firmware::Decision::Update { from } => {
+                let path = port
+                    .ok_or_else(|| "The board is not connected.".to_string())?
+                    .path;
+                return Ok(Identify::Write {
+                    kind: firmware::FlashKind::Update {
+                        from: Some(from),
+                        to: published,
+                    },
+                    pulse: Some(path),
+                    first_setup: false,
+                });
+            }
+            firmware::Decision::ReplaceForeign => {
+                let path = port
+                    .ok_or_else(|| "The board is not connected.".to_string())?
+                    .path;
+                return Ok(Identify::Write {
+                    kind: firmware::FlashKind::Update {
+                        from: None,
+                        to: published,
+                    },
+                    pulse: Some(path),
+                    first_setup: false,
+                });
+            }
+            firmware::Decision::FirstSetup => {
+                return Ok(Identify::Write {
+                    kind: firmware::FlashKind::Initial,
+                    pulse: None,
+                    first_setup: true,
+                });
+            }
+            firmware::Decision::ConfirmForeign => {
+                return Ok(Identify::Stop(report(
+                    "confirm",
+                    Some("This board is not running LiveUse. Writing replaces the program on it."),
+                )));
+            }
+            firmware::Decision::UpToDate => {
+                return Ok(Identify::Stop(report(
+                    "upToDate",
+                    Some("Firmware is up to date."),
+                )));
+            }
+            firmware::Decision::DeviceNewer => {
+                return Ok(Identify::Stop(report(
+                    "deviceNewer",
+                    Some("This board is newer than the published release."),
+                )));
+            }
+            firmware::Decision::PhysicalSteps => return Err(firmware::PHYSICAL_STEPS.into()),
+            firmware::Decision::NotConnected => {
+                return Err("Connect the XIAO before writing firmware.".into());
+            }
+        }
+    }
+}
+
+fn program(
+    image: &[u8],
+    pulse: Option<&str>,
+    first_setup: bool,
+    progress: &mut dyn FnMut(&str, u8),
+) -> Result<(), String> {
+    if let Some(path) = pulse {
+        if let Some(err) = holders_error(&[path.to_string()]) {
+            return Err(err);
+        }
+    } else if let Some(port) = find_usb(BOOTLOADER_VID, BOOTLOADER_PID)
+        && let Some(err) = holders_error(&[port.path])
+    {
+        return Err(err);
+    }
+    if first_setup {
+        progress("first-setup", 1);
+    }
+    if let Some(path) = pulse {
+        progress("bootloader", 1);
+        samba::pulse_1200(path)?;
+    }
+    samba::wait_bootloader(Duration::from_secs(8))?;
+    std::thread::sleep(Duration::from_secs(2));
+    bossac::flash(image, progress)?;
+    samba::wait_running(Duration::from_secs(8))?;
+    progress("reset", 100);
+    Ok(())
+}
+
+#[tauri::command]
+async fn flash_firmware(
+    state: tauri::State<'_, Arc<AppState>>,
+    confirmed: Option<bool>,
+) -> Result<FlashReport, String> {
+    if state.agent_running.load(Ordering::SeqCst) {
+        return Err("Finish the current action before updating the firmware.".into());
+    }
+    if state.flashing.load(Ordering::SeqCst) {
+        return Err("A firmware write is already running.".into());
+    }
+    let confirmed = confirmed.unwrap_or(false);
+    let board = firmware::fetch_manifest().await?;
+    let published = board.version;
+
+    if state
+        .flashing
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        return Err("A firmware write is already running.".into());
+    }
+    let guard = FlashGuard(Arc::clone(&state));
+    state.device.close();
+    state.stop_server();
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    while state.device.path().is_some() {
+        if std::time::Instant::now() >= deadline {
+            return Err("The serial port stayed open.".into());
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+
+    let identified = tokio::task::spawn_blocking(move || identify(published, confirmed))
+        .await
+        .map_err(|err| err.to_string())?;
+    let identified = match identified {
+        Ok(next) => next,
+        Err(err) => {
+            note_flash_failure(&state, err.clone());
+            drop(guard);
+            return Err(err);
+        }
+    };
+
+    let (kind, pulse, first_setup) = match identified {
+        Identify::Stop(report) => {
+            drop(guard);
+            if let Ok(mut cache) = state.firmware_cache.lock() {
+                *cache = None;
+            }
+            poll_device(state.inner()).await;
+            return Ok(report);
+        }
+        Identify::Write {
+            kind,
+            pulse,
+            first_setup,
+        } => (kind, pulse, first_setup),
+    };
+
+    firmware::authorize_or_reject(&kind)?;
+    let image = match firmware::download_image(&board).await {
+        Ok(image) => image,
+        Err(err) => {
+            note_flash_failure(&state, err.clone());
+            drop(guard);
+            return Err(err);
+        }
+    };
+    firmware::authorize_or_reject(&kind)?;
+
+    let app = state.app.clone();
+    let write = tokio::task::spawn_blocking(move || {
+        let mut progress = |phase: &str, percent: u8| {
+            let _ = app.emit(
+                "flash-progress",
+                json!({ "phase": phase, "percent": percent }),
+            );
+        };
+        program(&image, pulse.as_deref(), first_setup, &mut progress)
+    })
+    .await
+    .map_err(|err| err.to_string())?;
+
+    if let Err(err) = write {
+        note_flash_failure(&state, err.clone());
+        drop(guard);
+        return Err(err);
+    }
+    if let Ok(mut cache) = state.firmware_cache.lock() {
+        *cache = None;
+    }
+    drop(guard);
+    poll_device(state.inner()).await;
+    Ok(FlashReport {
+        outcome: "written".into(),
+        message: None,
+        first_setup,
+    })
+}
+
+fn note_flash_failure(state: &AppState, err: String) {
+    let boot = find_usb(BOOTLOADER_VID, BOOTLOADER_PID);
+    let running = find_running();
+    let foreign = running.as_ref().is_some_and(|port| {
+        liveuse_usb(port.manufacturer.as_deref(), port.product.as_deref()) == Some(false)
+    });
+    let path = running
+        .as_ref()
+        .map(|port| port.path.clone())
+        .or_else(|| boot.as_ref().map(|port| port.path.clone()));
+    state.set_device_view(DeviceView {
+        connected: false,
+        path,
+        bootloader: boot.is_some() && running.is_none(),
+        foreign,
+        error: Some(err),
+        ..DeviceView::default()
+    });
+}
+
+struct FlashGuard(Arc<AppState>);
+
+impl Drop for FlashGuard {
+    fn drop(&mut self) {
+        self.0.flashing.store(false, Ordering::SeqCst);
+    }
 }
 
 #[tauri::command]
@@ -295,7 +667,9 @@ pub fn run() {
             request_abort,
             clear_abort,
             reveal,
-            run_agent
+            run_agent,
+            firmware_offer,
+            flash_firmware
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -377,6 +751,8 @@ fn load_state(app: &tauri::AppHandle) -> Result<AppState, Box<dyn std::error::Er
         listening: std::sync::atomic::AtomicBool::new(false),
         server_error: std::sync::Mutex::new(None),
         device_info: std::sync::Mutex::new(DeviceView::default()),
+        flashing: std::sync::atomic::AtomicBool::new(false),
+        firmware_cache: std::sync::Mutex::new(None),
         llm_base_url: RwLock::new(config.llm_base_url),
         llm_model: RwLock::new(config.llm_model),
         llm_provider: RwLock::new(
@@ -489,9 +865,12 @@ fn install_tray(
 }
 
 async fn poll_device(state: &Arc<AppState>) {
-    match find_xiao() {
-        Some(path)
-            if state.device.path().as_deref() == Some(path.as_str())
+    if state.flashing.load(Ordering::SeqCst) {
+        return;
+    }
+    match find_running() {
+        Some(found)
+            if state.device.path().as_deref() == Some(found.path.as_str())
                 && !state.device.is_broken() =>
         {
             if let Ok(_guard) = state.action_lock.try_lock() {
@@ -503,43 +882,105 @@ async fn poll_device(state: &Arc<AppState>) {
                             .map(|slot| slot.clone())
                             .unwrap_or_default();
                         view.connected = true;
-                        view.path = Some(path);
+                        view.path = Some(found.path);
                         view.uptime_ms = Some(parsed.uptime_ms);
                         view.firmware = Some(parsed.firmware);
                         view.error = None;
+                        view.bootloader = false;
+                        view.foreign = false;
                         state.set_device_view(view);
                     }
                 }
             }
         }
-        Some(path) => match state.device.open(&path).await {
-            Ok(parsed) => {
-                state.set_device_view(DeviceView {
-                    connected: true,
-                    path: Some(path),
-                    uptime_ms: Some(parsed.uptime_ms),
-                    firmware: Some(parsed.firmware),
-                    error: None,
-                });
-                state.ensure_server().await;
+        Some(found) => {
+            let identity = liveuse_usb(found.manufacturer.as_deref(), found.product.as_deref());
+            let holding_foreign = state.device_info.lock().ok().is_some_and(|view| {
+                view.foreign && view.path.as_deref() == Some(found.path.as_str()) && !view.connected
+            });
+            if identity == Some(false) || (holding_foreign && identity != Some(true)) {
+                if state.device.path().is_some() || state.listening.load(Ordering::SeqCst) {
+                    state.device.close();
+                    state.stop_server();
+                }
+                if !holding_foreign {
+                    state.set_device_view(DeviceView {
+                        connected: false,
+                        path: Some(found.path),
+                        foreign: true,
+                        ..DeviceView::default()
+                    });
+                }
+                return;
             }
-            Err(err) => {
-                state.device.close();
-                state.stop_server();
-                state.set_device_view(DeviceView {
-                    connected: false,
-                    error: Some(err),
-                    ..DeviceView::default()
-                });
-            }
-        },
-        None => {
-            if state.device.path().is_some() || state.listening.load(Ordering::SeqCst) {
-                state.device.close();
-                state.stop_server();
-                state.set_device_view(DeviceView::default());
+            match state.device.open(&found.path).await {
+                Ok(parsed) => {
+                    state.set_device_view(DeviceView {
+                        connected: true,
+                        path: Some(found.path),
+                        uptime_ms: Some(parsed.uptime_ms),
+                        firmware: Some(parsed.firmware),
+                        error: None,
+                        bootloader: false,
+                        foreign: false,
+                    });
+                    state.ensure_server().await;
+                }
+                Err(OpenFailure::NotLiveUse) => {
+                    state.device.close();
+                    state.stop_server();
+                    state.set_device_view(DeviceView {
+                        connected: false,
+                        path: Some(found.path),
+                        foreign: true,
+                        ..DeviceView::default()
+                    });
+                }
+                Err(OpenFailure::Unavailable(err)) => {
+                    state.device.close();
+                    state.stop_server();
+                    state.set_device_view(DeviceView {
+                        connected: false,
+                        error: Some(err),
+                        ..DeviceView::default()
+                    });
+                }
             }
         }
+        None => note_missing_sketch(state),
+    }
+}
+
+fn note_missing_sketch(state: &Arc<AppState>) {
+    if let Some(hit) = find_usb(BOOTLOADER_VID, BOOTLOADER_PID) {
+        if state.device.path().is_some() || state.listening.load(Ordering::SeqCst) {
+            state.device.close();
+            state.stop_server();
+        }
+        let same = state.device_info.lock().ok().is_some_and(|view| {
+            view.bootloader && view.path.as_deref() == Some(hit.path.as_str()) && !view.connected
+        });
+        if !same {
+            state.set_device_view(DeviceView {
+                connected: false,
+                path: Some(hit.path),
+                bootloader: true,
+                ..DeviceView::default()
+            });
+        }
+        return;
+    }
+    let occupied = state.device.path().is_some()
+        || state.listening.load(Ordering::SeqCst)
+        || state
+            .device_info
+            .lock()
+            .ok()
+            .is_some_and(|view| view.bootloader || view.connected || view.foreign);
+    if occupied {
+        state.device.close();
+        state.stop_server();
+        state.set_device_view(DeviceView::default());
     }
 }
 
