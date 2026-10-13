@@ -57,6 +57,9 @@ pub enum FlashKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Entitlement {
     Allowed,
+    /// Not produced today. `authorize` returns `Allowed` for both kinds;
+    /// a later version returns this for `FlashKind::Initial`.
+    #[cfg_attr(not(test), expect(dead_code))]
     PaymentRequired,
 }
 
@@ -122,12 +125,6 @@ struct ManifestFlash {
     protocol: String,
     enter: String,
     offset: String,
-}
-
-pub fn parse_manifest(text: &str) -> Result<(), String> {
-    serde_json::from_str::<ManifestFile>(text)
-        .map(|_| ())
-        .map_err(|err| format!("manifest: {err}"))
 }
 
 pub fn matching_board(text: &str) -> Result<Option<AcceptedBoard>, String> {
@@ -218,17 +215,11 @@ pub fn image_matches(bytes: &[u8], expected_sha: &str, expected_size: u64) -> Re
     Ok(())
 }
 
-async fn fetch_manifest_text(client: &reqwest::Client, fresh: bool) -> Result<String, String> {
-    if fresh {
-        if let Ok(text) = fetch_manifest_via_api(client).await {
-            return Ok(text);
-        }
-        return fetch_manifest_via_raw(client, true).await;
-    }
+async fn fetch_manifest_text(client: &reqwest::Client) -> Result<String, String> {
     if let Ok(text) = fetch_manifest_via_api(client).await {
         return Ok(text);
     }
-    fetch_manifest_via_raw(client, false).await
+    fetch_manifest_via_raw(client).await
 }
 
 async fn fetch_manifest_via_api(client: &reqwest::Client) -> Result<String, String> {
@@ -246,25 +237,19 @@ async fn fetch_manifest_via_api(client: &reqwest::Client) -> Result<String, Stri
         .map_err(|err| err.to_string())
 }
 
-async fn fetch_manifest_via_raw(client: &reqwest::Client, bust_cache: bool) -> Result<String, String> {
-    let url = if bust_cache {
-        format!(
-            "{MANIFEST_URL}?t={}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|duration| duration.as_secs())
-                .unwrap_or(0)
-        )
-    } else {
-        MANIFEST_URL.to_string()
-    };
-    let mut request = client.get(&url).header(reqwest::header::USER_AGENT, GITHUB_USER_AGENT);
-    if bust_cache {
-        request = request
-            .header(reqwest::header::CACHE_CONTROL, "no-cache")
-            .header(reqwest::header::PRAGMA, "no-cache");
-    }
-    request
+async fn fetch_manifest_via_raw(client: &reqwest::Client) -> Result<String, String> {
+    let url = format!(
+        "{MANIFEST_URL}?t={}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_secs())
+            .unwrap_or(0)
+    );
+    client
+        .get(&url)
+        .header(reqwest::header::USER_AGENT, GITHUB_USER_AGENT)
+        .header(reqwest::header::CACHE_CONTROL, "no-cache")
+        .header(reqwest::header::PRAGMA, "no-cache")
         .send()
         .await
         .map_err(|err| err.to_string())?
@@ -275,12 +260,12 @@ async fn fetch_manifest_via_raw(client: &reqwest::Client, bust_cache: bool) -> R
         .map_err(|err| err.to_string())
 }
 
-pub async fn fetch_manifest(fresh: bool) -> Result<AcceptedBoard, String> {
+pub async fn fetch_manifest() -> Result<AcceptedBoard, String> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(20))
         .build()
         .map_err(|err| err.to_string())?;
-    let text = fetch_manifest_text(&client, fresh).await?;
+    let text = fetch_manifest_text(&client).await?;
     matching_board(&text)?.ok_or_else(|| "No XIAO firmware in the published manifest.".into())
 }
 
@@ -494,64 +479,13 @@ pub fn decide(seen: Seen, published: Version, confirmed: bool, tried_leave: bool
     }
 }
 
-pub fn offer_for_vector(word: u32, board: &AcceptedBoard) -> Offer {
-    let available = Some(board.version.to_string());
-    if word == 0xFFFF_FFFF {
-        Offer {
-            state: "install".into(),
-            current: None,
-            available,
-            notes: Some(board.notes.clone()),
-            message: None,
-        }
-    } else {
-        Offer {
-            state: "repair".into(),
-            current: None,
-            available,
-            notes: Some(board.notes.clone()),
-            message: Some(
-                "Reset the board to read the firmware version. If the sketch does not start, write the published firmware."
-                    .into(),
-            ),
-        }
-    }
-}
-
-pub fn flash_kind_for(
-    state: &str,
-    current: Option<&str>,
-    board: &AcceptedBoard,
-) -> Result<FlashKind, String> {
-    match state {
-        "update" => {
-            let from = parse_version(current.unwrap_or("")).ok_or_else(|| {
-                "The firmware version on the board can't be compared.".to_string()
-            })?;
-            if from >= board.version {
-                return Err("The board is already on that firmware.".into());
-            }
-            Ok(FlashKind::Update {
-                from: Some(from),
-                to: board.version,
-            })
-        }
-        "install" => Ok(FlashKind::Initial),
-        "repair" => Ok(FlashKind::Update {
-            from: None,
-            to: board.version,
-        }),
-        _ => Err("This board has no firmware write waiting.".into()),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
         AcceptedBoard, Decision, Entitlement, FlashKind, PAYMENT_REQUIRED, Seen, Version,
-        authorize, authorize_or_reject, decide, flash_kind_for, matching_board,
-        offer_for_bootloader, offer_for_foreign, offer_for_published, offer_for_running,
-        offer_for_vector, parse_manifest, parse_version, rejection, seen_from_status,
+        authorize, authorize_or_reject, decide, matching_board, offer_for_bootloader,
+        offer_for_foreign, offer_for_published, offer_for_running, parse_version, rejection,
+        seen_from_status,
     };
 
     const EXAMPLE: &str = r#"{
@@ -613,7 +547,6 @@ mod tests {
 
     #[test]
     fn example_manifest_parses_and_contract_is_strict() {
-        parse_manifest(EXAMPLE).unwrap();
         assert!(matching_board(EXAMPLE).unwrap().is_none());
 
         let board = matching_board(&valid_manifest()).unwrap().unwrap();
@@ -671,16 +604,6 @@ mod tests {
         assert_eq!(offer_for_running("0.4.1", &board).state, "update");
         assert_eq!(offer_for_running("0.5.0", &board).state, "upToDate");
         assert_eq!(offer_for_running("0.5.1", &board).state, "deviceNewer");
-        assert_eq!(offer_for_vector(0xFFFF_FFFF, &board).state, "install");
-        assert_eq!(offer_for_vector(0x2000_0000, &board).state, "repair");
-        assert!(matches!(
-            flash_kind_for("install", None, &board),
-            Ok(FlashKind::Initial)
-        ));
-        assert!(matches!(
-            flash_kind_for("repair", None, &board),
-            Ok(FlashKind::Update { from: None, .. })
-        ));
     }
 
     #[test]
