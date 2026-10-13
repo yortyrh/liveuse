@@ -402,6 +402,20 @@ The app couldn't restart the board out of the bootloader, so it did not write an
 Close any program using the serial port. Unplug the USB cable and plug it back in, then try again. \
 If the board is still in the bootloader, short the two RST pads once — one tap, not two — and try again.";
 
+/// `identity` is the USB name check. A parsed `fw=` version is LiveUse even when
+/// the USB strings say something else. Silence from a LiveUse name is a failed
+/// read, not another program.
+pub fn seen_from_status(
+    identity: Option<bool>,
+    version: Option<Version>,
+) -> Result<Seen, &'static str> {
+    match version {
+        Some(version) => Ok(Seen::LiveUse(version)),
+        None if identity == Some(true) => Err("The board did not answer. Try the update again."),
+        None => Ok(Seen::Foreign),
+    }
+}
+
 pub fn decide(seen: Seen, published: Version, confirmed: bool, tried_leave: bool) -> Decision {
     match seen {
         Seen::Absent if tried_leave => Decision::PhysicalSteps,
@@ -473,7 +487,7 @@ mod tests {
         AcceptedBoard, Decision, Entitlement, FlashKind, PAYMENT_REQUIRED, Seen, Version,
         authorize, authorize_or_reject, decide, flash_kind_for, matching_board,
         offer_for_bootloader, offer_for_foreign, offer_for_running, offer_for_vector,
-        parse_manifest, parse_version, rejection,
+        parse_manifest, parse_version, rejection, seen_from_status,
     };
 
     const EXAMPLE: &str = r#"{
@@ -615,6 +629,22 @@ mod tests {
                 .message
                 .unwrap()
                 .contains("bootloader")
+        );
+    }
+
+    #[test]
+    fn liveuse_name_without_status_is_not_foreign() {
+        let older = parse_version("0.5.1").unwrap();
+        assert_eq!(
+            seen_from_status(Some(true), Some(older)).unwrap(),
+            Seen::LiveUse(older)
+        );
+        assert!(seen_from_status(Some(true), None).is_err());
+        assert_eq!(seen_from_status(Some(false), None).unwrap(), Seen::Foreign);
+        assert_eq!(seen_from_status(None, None).unwrap(), Seen::Foreign);
+        assert_eq!(
+            seen_from_status(Some(false), Some(older)).unwrap(),
+            Seen::LiveUse(older)
         );
     }
 

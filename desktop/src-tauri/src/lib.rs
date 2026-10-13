@@ -182,26 +182,23 @@ fn report(outcome: &str, message: Option<&str>) -> FlashReport {
 }
 
 fn seen_from_running(port: &device::FoundPort, settle: bool) -> Result<firmware::Seen, String> {
-    if liveuse_usb(port.manufacturer.as_deref(), port.product.as_deref()) == Some(false) {
-        return Ok(firmware::Seen::Foreign);
-    }
+    let identity = liveuse_usb(port.manufacturer.as_deref(), port.product.as_deref());
     if let Some(err) = holders_error(&[port.path.clone()]) {
         return Err(err);
     }
-    let version = if settle {
+    let version = if settle || identity == Some(true) {
         device::read_firmware_version_settled(&port.path)?
     } else {
         device::read_firmware_version(&port.path)?
     };
-    match version {
-        Some(text) => {
-            let version = firmware::parse_version(&text).ok_or_else(|| {
+    let parsed =
+        match version {
+            Some(text) => Some(firmware::parse_version(&text).ok_or_else(|| {
                 "The firmware version on the board can't be compared.".to_string()
-            })?;
-            Ok(firmware::Seen::LiveUse(version))
-        }
-        None => Ok(firmware::Seen::Foreign),
-    }
+            })?),
+            None => None,
+        };
+    firmware::seen_from_status(identity, parsed).map_err(str::to_string)
 }
 
 fn observe(settle: bool) -> Result<(firmware::Seen, Option<device::FoundPort>), String> {

@@ -100,6 +100,7 @@ pub struct Device {
     tx: Sender<Job>,
     path: Arc<Mutex<Option<String>>>,
     broken: Arc<AtomicBool>,
+    release: Arc<AtomicBool>,
 }
 
 impl Device {
@@ -107,13 +108,20 @@ impl Device {
         let (tx, rx) = mpsc::channel::<Job>();
         let path = Arc::new(Mutex::new(None));
         let broken = Arc::new(AtomicBool::new(false));
+        let release = Arc::new(AtomicBool::new(false));
         let path_worker = path.clone();
         let broken_worker = broken.clone();
+        let release_worker = release.clone();
         std::thread::Builder::new()
             .name("liveuse-cdc".into())
-            .spawn(move || worker(rx, path_worker, broken_worker))
+            .spawn(move || worker(rx, path_worker, broken_worker, release_worker))
             .expect("CDC thread");
-        Self { tx, path, broken }
+        Self {
+            tx,
+            path,
+            broken,
+            release,
+        }
     }
 
     pub fn path(&self) -> Option<String> {
@@ -136,7 +144,10 @@ impl Device {
             .map_err(|_| OpenFailure::Unavailable("serial port closed".into()))?
     }
 
+    /// Drop our CDC handle. The flag is set before the job is queued so a read
+    /// already in progress returns instead of holding the port until it times out.
     pub fn close(&self) {
+        self.release.store(true, Ordering::SeqCst);
         let _ = self.tx.send(Job::Close);
     }
 
@@ -157,7 +168,12 @@ impl Device {
     }
 }
 
-fn worker(rx: mpsc::Receiver<Job>, path: Arc<Mutex<Option<String>>>, broken: Arc<AtomicBool>) {
+fn worker(
+    rx: mpsc::Receiver<Job>,
+    path: Arc<Mutex<Option<String>>>,
+    broken: Arc<AtomicBool>,
+    release: Arc<AtomicBool>,
+) {
     let mut port: Option<Box<dyn serialport::SerialPort>> = None;
     while let Ok(job) = rx.recv() {
         match job {
@@ -167,6 +183,7 @@ fn worker(rx: mpsc::Receiver<Job>, path: Arc<Mutex<Option<String>>>, broken: Arc
                     *guard = None;
                 }
                 broken.store(false, Ordering::Relaxed);
+                release.store(false, Ordering::SeqCst);
             }
             Job::Open { path: next, reply } => {
                 port = None;
@@ -174,20 +191,22 @@ fn worker(rx: mpsc::Receiver<Job>, path: Arc<Mutex<Option<String>>>, broken: Arc
                     open_port(&next)
                         .map_err(OpenFailure::Unavailable)
                         .and_then(|mut serial| {
-                            drain(serial.as_mut(), Duration::from_millis(400));
+                            drain(serial.as_mut(), Duration::from_millis(400), &release);
                             write_line(serial.as_mut(), "STATUS")
                                 .map_err(OpenFailure::Unavailable)?;
-                            let line =
-                                wait_match(serial.as_mut(), Duration::from_secs(2), |line| {
-                                    parse_status(line).is_some()
-                                })
-                                .map_err(|err| {
-                                    if err == "device timed out" {
-                                        OpenFailure::NotLiveUse
-                                    } else {
-                                        OpenFailure::Unavailable(err)
-                                    }
-                                })?;
+                            let line = wait_match(
+                                serial.as_mut(),
+                                Duration::from_secs(2),
+                                &release,
+                                |line| parse_status(line).is_some(),
+                            )
+                            .map_err(|err| {
+                                if err == "device timed out" {
+                                    OpenFailure::NotLiveUse
+                                } else {
+                                    OpenFailure::Unavailable(err)
+                                }
+                            })?;
                             let status = parse_status(&line).ok_or(OpenFailure::NotLiveUse)?;
                             Ok((serial, status))
                         });
@@ -218,7 +237,7 @@ fn worker(rx: mpsc::Receiver<Job>, path: Arc<Mutex<Option<String>>>, broken: Arc
                     let _ = reply.send(Err("device not connected".into()));
                     continue;
                 };
-                let result = transact_line(serial.as_mut(), &line, silent_timeout);
+                let result = transact_line(serial.as_mut(), &line, silent_timeout, &release);
                 if result.is_err() {
                     broken.store(true, Ordering::Relaxed);
                 }
@@ -244,30 +263,41 @@ fn write_line(port: &mut dyn serialport::SerialPort, line: &str) -> Result<(), S
     Ok(())
 }
 
+/// STATUS answers `OK uptime_ms=… fw=…` and does not end in "done".
+/// Every other command finishes on "done" or "ERR".
+fn reply_completes(command: &str, line: &str) -> bool {
+    if line.starts_with("ERR") || line.ends_with(" done") {
+        return true;
+    }
+    let verb = command.split_whitespace().next().unwrap_or("");
+    verb == "STATUS" && parse_status(line).is_some()
+}
+
 fn transact_line(
     port: &mut dyn serialport::SerialPort,
     line: &str,
     silent_timeout: Option<Duration>,
+    release: &AtomicBool,
 ) -> Result<String, String> {
     write_line(port, line)?;
     if let Some(timeout) = silent_timeout {
         let deadline = Instant::now() + timeout;
         loop {
-            match read_line(port, deadline)? {
+            match read_line(port, deadline, release)? {
                 None => return Ok(String::new()),
                 Some(line) if line.starts_with("ERR") => return Err(line),
                 Some(_) => continue,
             }
         }
     }
-    wait_match(port, Duration::from_secs(8), |line| {
-        line.starts_with("ERR") || line.ends_with(" done")
+    wait_match(port, Duration::from_secs(8), release, |reply| {
+        reply_completes(line, reply)
     })
-    .and_then(|line| {
-        if line.starts_with("ERR") {
-            Err(line)
+    .and_then(|reply| {
+        if reply.starts_with("ERR") {
+            Err(reply)
         } else {
-            Ok(line)
+            Ok(reply)
         }
     })
 }
@@ -275,11 +305,12 @@ fn transact_line(
 fn wait_match(
     port: &mut dyn serialport::SerialPort,
     budget: Duration,
+    release: &AtomicBool,
     pred: impl Fn(&str) -> bool,
 ) -> Result<String, String> {
     let deadline = Instant::now() + budget;
     loop {
-        match read_line(port, deadline)? {
+        match read_line(port, deadline, release)? {
             None => return Err("device timed out".into()),
             Some(line) if pred(&line) => return Ok(line),
             Some(_) => continue,
@@ -287,10 +318,13 @@ fn wait_match(
     }
 }
 
-fn drain(port: &mut dyn serialport::SerialPort, budget: Duration) {
+fn drain(port: &mut dyn serialport::SerialPort, budget: Duration, release: &AtomicBool) {
     let deadline = Instant::now() + budget;
     while Instant::now() < deadline {
-        if read_line(port, Instant::now() + Duration::from_millis(40))
+        if release.load(Ordering::Relaxed) {
+            break;
+        }
+        if read_line(port, Instant::now() + Duration::from_millis(40), release)
             .ok()
             .flatten()
             .is_none()
@@ -303,10 +337,14 @@ fn drain(port: &mut dyn serialport::SerialPort, budget: Duration) {
 fn read_line(
     port: &mut dyn serialport::SerialPort,
     deadline: Instant,
+    release: &AtomicBool,
 ) -> Result<Option<String>, String> {
     let mut buf = Vec::new();
     let mut byte = [0u8; 1];
     loop {
+        if release.load(Ordering::Relaxed) {
+            return Err("closed".into());
+        }
         if Instant::now() >= deadline {
             return Ok(None);
         }
@@ -330,17 +368,19 @@ fn read_line(
     }
 }
 
-/// Identification open. 115200 baud, DTR left low, so this is not the 1200-baud
-/// bootloader touch.
+/// Identification open. 115200 baud with DTR high, the same open the status
+/// poll uses. The bootloader touch is a separate 1200-baud open whose DTR fall
+/// resets the board; asserting DTR here does not.
 pub fn read_firmware_version(path: &str) -> Result<Option<String>, String> {
     let mut port = serialport::new(path, 115_200)
         .timeout(Duration::from_millis(30))
-        .dtr_on_open(false)
         .open()
         .map_err(|err| format!("could not open {path}: {err}"))?;
-    drain(port.as_mut(), Duration::from_millis(200));
+    let _ = port.write_data_terminal_ready(true);
+    let release = AtomicBool::new(false);
+    drain(port.as_mut(), Duration::from_millis(400), &release);
     write_line(port.as_mut(), "STATUS")?;
-    match wait_match(port.as_mut(), Duration::from_secs(2), |line| {
+    match wait_match(port.as_mut(), Duration::from_secs(2), &release, |line| {
         parse_status(line).is_some()
     }) {
         Ok(line) => Ok(parse_status(&line).map(|status| status.firmware)),
@@ -503,7 +543,15 @@ pub fn wait_reenumerate(previous: &FoundPort) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{liveuse_usb, parse_lsof, sibling_callout};
+    use super::{liveuse_usb, parse_lsof, reply_completes, sibling_callout};
+
+    #[test]
+    fn status_reply_completes_without_done() {
+        assert!(reply_completes("STATUS", "OK uptime_ms=1519 fw=0.5.1"));
+        assert!(!reply_completes("MOVE 1 2", "OK uptime_ms=1519 fw=0.5.1"));
+        assert!(reply_completes("MOVE 1 2", "MOVE done"));
+        assert!(reply_completes("STATUS", "ERR STATUS bad"));
+    }
 
     #[test]
     fn usb_strings_distinguish_liveuse() {
