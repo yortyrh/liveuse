@@ -9,8 +9,7 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml* .npmrc* ./
 
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-  corepack enable pnpm && pnpm install --frozen-lockfile
+RUN corepack enable pnpm && pnpm install --frozen-lockfile
 
 FROM node:${NODE_VERSION} AS builder
 
