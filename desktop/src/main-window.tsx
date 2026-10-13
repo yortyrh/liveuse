@@ -48,6 +48,7 @@ export function MainWindow() {
   const [confirmForeign, setConfirmForeign] = useState(false);
   const [firstSetup, setFirstSetup] = useState(false);
   const [flashError, setFlashError] = useState<string | null>(null);
+  const [checkingFirmware, setCheckingFirmware] = useState(false);
   const [share, setShare] = useState<ShareInfo | null>(null);
   const [urlIndex, setUrlIndex] = useState(0);
   const [llm, setLlm] = useState<LlmSettings>({
@@ -108,6 +109,9 @@ export function MainWindow() {
 
   useEffect(() => {
     if (flashing) {
+      return;
+    }
+    if (!device.connected && !device.bootloader && !device.foreign) {
       return;
     }
     void firmwareOffer()
@@ -184,6 +188,27 @@ export function MainWindow() {
   async function copy(value: string, label: string) {
     await navigator.clipboard.writeText(value);
     toast.success(`${label} copied`);
+  }
+
+  async function checkFirmwareUpdates() {
+    if (flashing || checkingFirmware) {
+      return;
+    }
+    setCheckingFirmware(true);
+    setFlashError(null);
+    try {
+      const next = await firmwareOffer(true);
+      setOffer(next);
+      if (next.state === "checkFailed") {
+        toast.error(next.message ?? "Couldn't check for firmware updates.");
+      }
+    } catch (error: unknown) {
+      const text = error instanceof Error ? error.message : String(error);
+      setOffer({ state: "checkFailed", message: text });
+      toast.error(text);
+    } finally {
+      setCheckingFirmware(false);
+    }
   }
 
   function connectRemote() {
@@ -318,23 +343,23 @@ export function MainWindow() {
               <StatusRow label="Service" value={share?.listening ? `listening on port ${share.port}` : "stopped"} />
               {device.error ? <p className="text-destructive">{device.error}</p> : null}
               {share?.serverError ? <p className="text-destructive">{share.serverError}</p> : null}
+              <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={flashing || checkingFirmware}
+                  onClick={() => void checkFirmwareUpdates()}
+                >
+                  {checkingFirmware ? "Checking…" : "Check for firmware updates"}
+                </Button>
+              </div>
               <FirmwareOfferBlock
                 offer={offer}
                 flashing={flashing}
                 progress={progress}
                 firstSetup={firstSetup}
                 flashError={flashError}
-                onCheck={() =>
-                  void firmwareOffer(true)
-                    .then((next) => {
-                      setFlashError(null);
-                      setOffer(next);
-                    })
-                    .catch((error: unknown) => {
-                      const text = error instanceof Error ? error.message : String(error);
-                      setOffer({ state: "checkFailed", message: text });
-                    })
-                }
+                onCheck={() => void checkFirmwareUpdates()}
                 onWrite={() => void writeFirmware(false)}
                 onReplace={() => setConfirmForeign(true)}
               />
@@ -552,9 +577,14 @@ function FirmwareOfferBlock({
           {phaseLabel(progress?.phase)} {progress?.percent ?? 0}%
         </p>
       ) : null}
-      {offer.message ? <p>{offer.message}</p> : null}
-      {offer.state === "update" && offer.available ? (
+      {offer.message && offer.state !== "update" && offer.state !== "published" ? (
+        <p>{offer.message}</p>
+      ) : null}
+      {(offer.state === "update" || offer.state === "published") && offer.available ? (
         <p>Published firmware {offer.available} is available.</p>
+      ) : null}
+      {offer.state === "published" && offer.available ? (
+        <p className="text-muted-foreground">Connect the XIAO to update.</p>
       ) : null}
       {flashError ? <p className="text-destructive">{flashError}</p> : null}
       <div className="flex flex-wrap gap-2">

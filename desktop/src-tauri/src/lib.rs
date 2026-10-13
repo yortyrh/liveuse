@@ -124,7 +124,7 @@ async fn firmware_offer(
             "A firmware write is already running.",
         ));
     }
-    if key == "none" {
+    if key == "none" && force != Some(true) {
         let offer = firmware::Offer::none();
         remember_offer(&state, key, offer.clone());
         return Ok(offer);
@@ -144,7 +144,7 @@ async fn firmware_offer(
     } else if view.foreign {
         firmware::offer_for_foreign(&board)
     } else {
-        firmware::Offer::none()
+        firmware::offer_for_published(&board)
     };
     remember_offer(&state, key, offer.clone());
     Ok(offer)

@@ -374,6 +374,18 @@ pub fn offer_for_foreign(board: &AcceptedBoard) -> Offer {
     }
 }
 
+/// Latest release from the public manifest when no board is connected to compare.
+pub fn offer_for_published(board: &AcceptedBoard) -> Offer {
+    let published = board.version.to_string();
+    Offer {
+        state: "published".into(),
+        current: None,
+        available: Some(published.clone()),
+        notes: Some(board.notes.clone()),
+        message: Some(format!("Latest published firmware is {published}.")),
+    }
+}
+
 /// What the flasher saw after releasing the port, without opening at 1200 baud.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Seen {
@@ -486,8 +498,8 @@ mod tests {
     use super::{
         AcceptedBoard, Decision, Entitlement, FlashKind, PAYMENT_REQUIRED, Seen, Version,
         authorize, authorize_or_reject, decide, flash_kind_for, matching_board,
-        offer_for_bootloader, offer_for_foreign, offer_for_running, offer_for_vector,
-        parse_manifest, parse_version, rejection, seen_from_status,
+        offer_for_bootloader, offer_for_foreign, offer_for_published, offer_for_running,
+        offer_for_vector, parse_manifest, parse_version, rejection, seen_from_status,
     };
 
     const EXAMPLE: &str = r#"{
@@ -624,6 +636,8 @@ mod tests {
         let board = sample_board();
         assert_eq!(offer_for_bootloader(&board).state, "bootloader");
         assert_eq!(offer_for_foreign(&board).state, "foreign");
+        assert_eq!(offer_for_published(&board).state, "published");
+        assert_eq!(offer_for_published(&board).available.as_deref(), Some("0.5.0"));
         assert!(
             offer_for_bootloader(&board)
                 .message
