@@ -6,9 +6,12 @@ use serde::Serialize;
 use crate::samba::{APP_OFFSET, APP_ROOM};
 use crate::sha256;
 
-/// `HEAD` tracks the default branch tip. The `/main/` raw URL can lag behind for minutes on the CDN.
+/// Fallback when the GitHub API is unavailable. Branch paths on this CDN can lag for minutes.
 pub const MANIFEST_URL: &str =
     "https://raw.githubusercontent.com/yortyrh/liveuse-releases/HEAD/manifest.json";
+const MANIFEST_API_URL: &str =
+    "https://api.github.com/repos/yortyrh/liveuse-releases/contents/manifest.json";
+const GITHUB_USER_AGENT: &str = "LiveUse-Desktop";
 pub const PAYMENT_REQUIRED: &str = "payment_required";
 
 const ASSET_HOST: &str = "https://github.com/yortyrh/liveuse-releases/releases/download/";
@@ -215,12 +218,36 @@ pub fn image_matches(bytes: &[u8], expected_sha: &str, expected_size: u64) -> Re
     Ok(())
 }
 
-pub async fn fetch_manifest(fresh: bool) -> Result<AcceptedBoard, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(20))
-        .build()
-        .map_err(|err| err.to_string())?;
-    let url = if fresh {
+async fn fetch_manifest_text(client: &reqwest::Client, fresh: bool) -> Result<String, String> {
+    if fresh {
+        if let Ok(text) = fetch_manifest_via_api(client).await {
+            return Ok(text);
+        }
+        return fetch_manifest_via_raw(client, true).await;
+    }
+    if let Ok(text) = fetch_manifest_via_api(client).await {
+        return Ok(text);
+    }
+    fetch_manifest_via_raw(client, false).await
+}
+
+async fn fetch_manifest_via_api(client: &reqwest::Client) -> Result<String, String> {
+    client
+        .get(MANIFEST_API_URL)
+        .header(reqwest::header::USER_AGENT, GITHUB_USER_AGENT)
+        .header(reqwest::header::ACCEPT, "application/vnd.github.raw")
+        .send()
+        .await
+        .map_err(|err| err.to_string())?
+        .error_for_status()
+        .map_err(|err| err.to_string())?
+        .text()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+async fn fetch_manifest_via_raw(client: &reqwest::Client, bust_cache: bool) -> Result<String, String> {
+    let url = if bust_cache {
         format!(
             "{MANIFEST_URL}?t={}",
             std::time::SystemTime::now()
@@ -231,13 +258,13 @@ pub async fn fetch_manifest(fresh: bool) -> Result<AcceptedBoard, String> {
     } else {
         MANIFEST_URL.to_string()
     };
-    let mut request = client.get(&url);
-    if fresh {
+    let mut request = client.get(&url).header(reqwest::header::USER_AGENT, GITHUB_USER_AGENT);
+    if bust_cache {
         request = request
-            .header("Cache-Control", "no-cache")
-            .header("Pragma", "no-cache");
+            .header(reqwest::header::CACHE_CONTROL, "no-cache")
+            .header(reqwest::header::PRAGMA, "no-cache");
     }
-    let text = request
+    request
         .send()
         .await
         .map_err(|err| err.to_string())?
@@ -245,7 +272,15 @@ pub async fn fetch_manifest(fresh: bool) -> Result<AcceptedBoard, String> {
         .map_err(|err| err.to_string())?
         .text()
         .await
+        .map_err(|err| err.to_string())
+}
+
+pub async fn fetch_manifest(fresh: bool) -> Result<AcceptedBoard, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
         .map_err(|err| err.to_string())?;
+    let text = fetch_manifest_text(&client, fresh).await?;
     matching_board(&text)?.ok_or_else(|| "No XIAO firmware in the published manifest.".into())
 }
 

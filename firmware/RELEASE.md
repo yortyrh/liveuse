@@ -6,7 +6,7 @@ An image for any other microcontroller stays in this private repository. It is u
 
 The script also creates the annotated tag `firmware-vX.Y.Z` in this clone, on the commit that contains that version. The same tag name is created in the public repository by the GitHub release. This script does not push either one to `yortyrh/liveuse` or `yortyrh/mcp-mouse`. A published version is not replaced. The next version is a new tag.
 
-`LIVEUSE_RELEASE_REPO` overrides the repository. It has to look like `owner/name`. The default branch of that repository has to be `main`, because the manifest URL is fixed:
+`LIVEUSE_RELEASE_REPO` overrides the repository. It has to look like `owner/name`. The default branch of that repository has to be `main`. The desktop app reads `manifest.json` through the GitHub contents API so a new publish shows up right away; the raw URL below can lag on the CDN for minutes:
 
 ```
 https://raw.githubusercontent.com/yortyrh/liveuse-releases/main/manifest.json
