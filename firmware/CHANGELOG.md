@@ -2,6 +2,13 @@
 
 Changes to the LiveUse firmware for the Seeed XIAO SAMD21. The version is the string in `firmware/VERSION`. `STATUS` prints that same string as `fw=`.
 
+## [0.5.7] - 2026-10-13
+
+### Changed
+
+- `STATUS` reports `fw=0.5.7`.
+- The USB device identifies as LiveUse 0.5.7, made by LiveUse. The mouse interface is LiveUse Mouse 0.5.7 and the keyboard interface is LiveUse Keyboard 0.5.7.
+
 ## [0.5.6] - 2026-10-13
 
 ### Changed
