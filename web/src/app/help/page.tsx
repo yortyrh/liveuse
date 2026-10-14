@@ -31,13 +31,14 @@ export default function HelpPage() {
             <h2 className="text-3xl font-semibold">On this Mac</h2>
             <p className="text-pretty text-lg">
               Plug in the board with the sketch running. The Device tab should say Connected, and
-              the service should be listening. The bootloader does not start the service.
+              the service should be listening. The bootloader does not start the service. When a
+              newer firmware is published, this tab writes it onto the board.
             </p>
           </div>
           <Shot
             src="/help/device.png"
-            alt="LiveUse Device tab with the XIAO connected and the service listening."
-            caption="The board, the firmware, and the local service."
+            alt="LiveUse Device tab with the XIAO connected and a firmware update ready to install."
+            caption="The board is connected, and a published firmware update is ready to write."
             width={1960}
             height={1520}
           />
