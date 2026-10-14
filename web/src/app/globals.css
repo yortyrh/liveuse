@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #e6e6e6;
+  --background: #f3ece3;
   --foreground: #171717;
   --card: #ffffff;
   --card-foreground: #171717;
@@ -154,6 +154,7 @@
   }
   html {
     @apply font-sans;
+    background-color: var(--background);
   }
   h1,
   h2,

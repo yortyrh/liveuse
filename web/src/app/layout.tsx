@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import "./globals.css";
-import "./ground.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
@@ -38,7 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={cn(geist.variable, geistMono.variable, "scroll-smooth")}
       suppressHydrationWarning
     >
-      <body className="page-ground flex min-h-screen flex-col font-sans text-base text-foreground antialiased">
+      <body className="flex min-h-screen flex-col bg-background font-sans text-base text-foreground antialiased">
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

@@ -1,3 +1,18 @@
 {
-  "buildPath": "comp"
+  "buildPath": "comp",
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gradient-text",
+        "value": "*",
+        "files": [
+          "web/src/app/globals.css"
+        ],
+        "createdAt": "2026-10-14T05:54:59.822Z",
+        "reason": "Existing hero title the user asked to keep; this edit only changes the page background color."
+      }
+    ]
+  }
 }
