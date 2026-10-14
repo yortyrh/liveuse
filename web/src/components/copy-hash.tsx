@@ -1,24 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { secondaryButtonClass } from "@/components/primary-link";
 
 export function CopyHash({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
+  const [state, setState] = useState<"idle" | "copied" | "error">("idle");
 
   async function copy() {
     try {
       await navigator.clipboard.writeText(value);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+      setState("copied");
+      window.setTimeout(() => setState("idle"), 2000);
     } catch {
-      setCopied(false);
+      setState("error");
     }
   }
 
+  const label =
+    state === "copied" ? "Copied" : state === "error" ? "Try again" : "Copy checksum";
+
   return (
-    <Button type="button" variant="outline" size="sm" onClick={copy}>
-      {copied ? "Copiado" : "Copiar"}
-    </Button>
+    <div className="flex flex-col gap-2">
+      <button type="button" onClick={() => void copy()} className={secondaryButtonClass}>
+        {label}
+      </button>
+      {state === "error" ? (
+        <p role="alert" className="text-pretty text-sm text-destructive">
+          Could not copy the checksum.
+        </p>
+      ) : null}
+      <p role="status" className="sr-only">
+        {state === "copied" ? "Checksum copied." : ""}
+      </p>
+    </div>
   );
 }

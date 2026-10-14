@@ -1,35 +1,43 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Source_Serif_4 } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
-const sourceSerif = Source_Serif_4({
-  subsets: ["latin"],
-  variable: "--font-source-serif-4",
-});
-
-const jetbrains = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
-});
+const description =
+  "Download LiveUse for Mac. With a Seeed XIAO running the sketch, it publishes a mouse and keyboard API and MCP on your local network.";
 
 export const metadata: Metadata = {
-  title: "LiveUse",
-  description:
-    "App de macOS que, con el XIAO corriendo el sketch, publica en la red local una API y un MCP del mouse y el teclado.",
+  title: {
+    default: "LiveUse for Mac",
+    template: "%s · LiveUse",
+  },
+  description,
+  robots: { index: true, follow: true },
+  openGraph: {
+    title: "LiveUse for Mac",
+    description,
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LiveUse for Mac",
+    description,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="es"
-      className={cn(inter.variable, sourceSerif.variable, jetbrains.variable)}
+      lang="en"
+      className={cn(geist.variable, geistMono.variable, "scroll-smooth")}
       suppressHydrationWarning
     >
-      <body className="min-h-full antialiased">
+      <body className="flex min-h-screen flex-col bg-background font-sans text-base text-foreground antialiased">
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

@@ -1,146 +1,258 @@
-import { CopyHash } from "@/components/copy-hash";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { formatSize, getApps, releaseUrl, type Download } from "@/lib/apps";
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
+import { Suspense } from "react";
+import { AppWindow, Key, Mouse, SealCheck } from "@phosphor-icons/react/ssr";
+import { DownloadSkeleton, Downloads } from "@/components/downloads";
+import { HeroStage } from "@/components/hero-stage";
+import { XiaoBoard } from "@/components/xiao-board";
+import { PrimaryLink } from "@/components/primary-link";
+import { Reveal } from "@/components/reveal";
+import { SiteShell } from "@/components/site-shell";
+import { Tagline } from "@/components/tagline";
+import { questions } from "@/lib/faq";
+import { cn } from "@/lib/utils";
 
-export default async function Home() {
-  const apps = await getApps();
+const description =
+  "Download LiveUse for Mac. With a Seeed XIAO running the sketch, it publishes a mouse and keyboard API and MCP on your local network.";
 
-  return (
-    <>
-      <header className="border-b">
-        <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between px-6">
-          <p className="font-heading text-sm font-semibold tracking-tight">LiveUse</p>
-          <ThemeToggle />
-        </div>
-      </header>
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-12 px-6 py-14">
-        <section className="flex flex-col gap-4">
-          <h1>LiveUse</h1>
-          <p className="max-w-2xl text-lg">
-            LiveUse es la app de macOS para el Seeed XIAO. Con el sketch corriendo, publica en la
-            red local una API y un MCP del mouse y del teclado. Cerrar la ventana la deja en la
-            barra de menú. Quit, en ese menú, cierra la app.
-          </p>
-          <p className="max-w-2xl text-muted-foreground">
-            Quien tenga el token en esa red puede mover el cursor y el teclado.
-          </p>
-        </section>
+export const metadata: Metadata = {
+  title: { absolute: "LiveUse for Mac" },
+  description,
+  robots: { index: true, follow: true },
+  openGraph: {
+    title: "LiveUse for Mac",
+    description,
+    type: "website",
+    locale: "en_US",
+  },
+};
 
-        <Separator />
+const benefits = [
+  {
+    icon: Mouse,
+    title: "A pointer the agent can call",
+    body: "Mouse and keyboard travel over a local API and MCP while the sketch is running.",
+  },
+  {
+    icon: AppWindow,
+    title: "Close the window and keep it",
+    body: "LiveUse stays in the menu bar. Quit in that menu ends the app. A Dock click opens the window again.",
+  },
+  {
+    icon: Key,
+    title: "Replace the token when you want",
+    body: "The Share tab shows the URL, the token, and the MCP configuration. A new token stops the previous clients.",
+  },
+  {
+    icon: SealCheck,
+    title: "Check the file before you open it",
+    body: "Each installer shows its size and SHA256 checksum. Copy the checksum and compare it.",
+  },
+];
 
-        <section id="descargar" className="flex flex-col gap-6">
-          <div className="flex flex-col gap-3">
-            <h2>Descargar</h2>
-            <p>
-              Hay un instalador para Mac Intel y otro para Apple Silicon. En el menú Apple, abre
-              Acerca de este Mac. Si dice Chip, baja Apple Silicon. Si dice Procesador, baja Intel.
-            </p>
-          </div>
-          {apps ? <DownloadList apps={apps} /> : <DownloadsUnavailable />}
-        </section>
+const steps = [
+  {
+    title: "Run the sketch",
+    body: "Flash LiveUse onto a Seeed XIAO SAMD21 and leave it running. The bootloader does not start the service.",
+  },
+  {
+    title: "Install the app",
+    body: "Open the disk image, drag LiveUse to Applications, and allow screen recording plus incoming connections.",
+  },
+  {
+    title: "Share the token",
+    body: "Copy the URL and the token from the Share tab. Closing the window leaves the service in the menu bar.",
+  },
+];
 
-        <Separator />
-
-        <section className="flex flex-col gap-4">
-          <h2>Instalación</h2>
-          <ol className="flex list-decimal flex-col gap-2 pl-5">
-            <li>Abre el DMG.</li>
-            <li>Arrastra LiveUse a la carpeta Aplicaciones.</li>
-            {apps?.signed === false ? (
-              <li>
-                La primera vez, clic derecho sobre LiveUse y elige Abrir. Esta versión no está
-                firmada ni notarizada, y macOS puede bloquearla.
-              </li>
-            ) : null}
-          </ol>
-        </section>
-
-        <Separator />
-
-        <section className="flex flex-col gap-4">
-          <h2>Qué pide macOS</h2>
-          <ul className="flex list-disc flex-col gap-2 pl-5">
-            <li>macOS.</li>
-            <li>Permiso de grabación de pantalla, para las capturas del agente.</li>
-            <li>Permiso de conexiones entrantes, para la API en la red local.</li>
-            <li>
-              Un Seeed XIAO SAMD21 con el sketch corriendo. El bootloader no inicia el servicio.
-            </li>
-          </ul>
-        </section>
-      </main>
-      <footer className="border-t">
-        <div className="mx-auto flex w-full max-w-3xl px-6 py-6 text-sm text-muted-foreground">
-          <a href="https://github.com/yortyrh/liveuse-releases">Versiones públicas</a>
-        </div>
-      </footer>
-    </>
-  );
-}
-
-function DownloadsUnavailable() {
-  return (
-    <p role="status" className="text-muted-foreground">
-      La descarga no está disponible. El manifiesto público no respondió.
-    </p>
-  );
-}
-
-function DownloadList({
-  apps,
-}: {
-  apps: {
-    version: string;
-    tag: string;
-    downloads: Download[];
+export default function Home() {
+  const faqLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: questions.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: { "@type": "Answer", text: item.answer },
+    })),
   };
-}) {
+
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
-        Versión {apps.version}.{" "}
-        <a href={releaseUrl(apps.tag)} className="underline-offset-4 hover:underline">
-          Notas de la versión
-        </a>
-      </p>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {apps.downloads.map((item) => (
-          <DownloadCard key={item.id} item={item} version={apps.version} />
-        ))}
-      </div>
-    </div>
+    <SiteShell>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }}
+      />
+      <main id="content" tabIndex={-1} className="outline-none">
+        <Band className="pt-8 pb-12">
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            <Reveal className="min-w-0">
+              <div className="flex max-w-[680px] flex-col gap-6">
+                <h1 className="flex flex-col gap-2 text-4xl font-semibold sm:text-5xl">
+                  <span className="hero-heading text-balance">The local pointer</span>
+                  <span className="text-balance text-foreground">
+                    with <span className="text-[#b45309]">LiveUse</span>
+                  </span>
+                </h1>
+                <p className="text-pretty text-lg">
+                  LiveUse is the macOS app for a Seeed XIAO SAMD21. With the sketch running, it
+                  publishes an API and an MCP for the mouse and the keyboard, then stays in the
+                  menu bar when you close the window.
+                </p>
+                <PrimaryLink href="/#download">Download for Mac</PrimaryLink>
+                <p className="text-sm font-semibold text-muted-foreground">
+                  Free on macOS, with a public checksum. Linux and Windows are in progress.
+                </p>
+              </div>
+            </Reveal>
+            <Reveal className="min-w-0" delay={120}>
+              <HeroStage />
+            </Reveal>
+          </div>
+        </Band>
+
+        <Band className="py-12">
+          <Reveal>
+            <section className="flex max-w-[680px] flex-col gap-4">
+              <h2 className="text-3xl font-semibold">The pointer stays on your Mac</h2>
+              <p className="text-pretty text-lg">
+                An agent on another computer cannot move your cursor by itself. LiveUse runs on
+                that Mac, with a Seeed XIAO on the desk, and publishes the mouse and the keyboard
+                on the local network.
+              </p>
+            </section>
+          </Reveal>
+        </Band>
+
+        <Band className="py-12">
+          <section className="flex flex-col gap-8">
+            <Reveal>
+              <h2 className="max-w-[680px] text-3xl font-semibold">What you get</h2>
+            </Reveal>
+            <div className="grid gap-6 md:grid-cols-2">
+              {benefits.map((benefit, index) => {
+                const Icon = benefit.icon;
+                return (
+                  <Reveal key={benefit.title} delay={index * 80}>
+                    <article className="flex h-full flex-col gap-4 rounded-2xl border border-border bg-card p-6">
+                      <Icon size={24} aria-hidden="true" className="text-primary" />
+                      <h3 className="text-xl font-semibold">{benefit.title}</h3>
+                      <p className="text-pretty text-base text-muted-foreground">{benefit.body}</p>
+                    </article>
+                  </Reveal>
+                );
+              })}
+            </div>
+          </section>
+        </Band>
+
+        <Band className="py-24">
+          <Tagline />
+        </Band>
+
+        <Band className="py-12">
+          <section id="setup" className="flex scroll-mt-24 flex-col gap-8">
+            <Reveal>
+              <h2 className="max-w-[680px] text-3xl font-semibold">How it works</h2>
+            </Reveal>
+            <ol className="grid gap-8 md:grid-cols-3">
+              {steps.map((step, index) => (
+                <li key={step.title}>
+                  <Reveal delay={index * 80}>
+                    <div className="flex flex-col gap-4">
+                      <span className="text-4xl font-semibold text-foreground/30">{index + 1}</span>
+                      <h3 className="text-xl font-semibold">{step.title}</h3>
+                      <p className="text-pretty text-base">{step.body}</p>
+                    </div>
+                  </Reveal>
+                </li>
+              ))}
+            </ol>
+          </section>
+        </Band>
+
+        <Band className="py-12">
+          <section className="grid items-center gap-12 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+            <Reveal>
+              <div className="rounded-2xl bg-white p-6 shadow-md">
+                <XiaoBoard className="h-auto w-full" />
+              </div>
+            </Reveal>
+            <Reveal delay={80}>
+              <div className="flex max-w-[680px] flex-col gap-4">
+                <h2 className="text-3xl font-semibold">In progress</h2>
+                <p className="text-pretty text-lg">
+                  What you can download today is the macOS app and the sketch for a Seeed XIAO
+                  SAMD21. Other boards are being explored, including the first steps of a smaller
+                  board that plugs straight into the computer. Desktop builds for Linux and Windows
+                  are in progress too.
+                </p>
+                <p className="text-pretty text-base">
+                  The first sketch used two FreeRTOS tasks and a command queue. On this XIAO that
+                  became one Arduino loop, so TinyUSB can be pumped from yield. FreeRTOS is part of
+                  the work on the boards that come next.
+                </p>
+              </div>
+            </Reveal>
+          </section>
+        </Band>
+
+        <Band className="py-12">
+          <section id="download" className="flex scroll-mt-24 flex-col gap-8">
+            <Reveal>
+              <div className="flex max-w-[680px] flex-col gap-4">
+                <h2 className="text-3xl font-semibold">Download</h2>
+                <p className="text-pretty text-lg">
+                  One installer for Intel and one for Apple Silicon. Open the Apple menu and
+                  choose About This Mac. If it says Chip, choose Apple Silicon. If it says
+                  Processor, choose Intel.
+                </p>
+              </div>
+            </Reveal>
+            <Suspense fallback={<DownloadSkeleton />}>
+              <Downloads />
+            </Suspense>
+          </section>
+        </Band>
+
+        <Band className="py-12">
+          <section id="questions" className="flex scroll-mt-24 flex-col gap-8">
+            <Reveal>
+              <div className="flex max-w-[680px] flex-col gap-4">
+                <h2 className="text-3xl font-semibold">Questions</h2>
+                <p className="text-pretty text-lg">
+                  Install, permissions, the board, and who can use the token.
+                </p>
+              </div>
+            </Reveal>
+            <div className="grid gap-8 md:grid-cols-2">
+              {questions.map((item, index) => (
+                <Reveal key={item.question} delay={index * 40}>
+                  <article className="flex flex-col gap-3">
+                    <h3 className="text-xl font-semibold">{item.question}</h3>
+                    <p className="text-pretty text-base text-muted-foreground">{item.answer}</p>
+                  </article>
+                </Reveal>
+              ))}
+            </div>
+          </section>
+        </Band>
+
+        <Band className="pt-12 pb-24">
+          <Reveal>
+            <section className="flex max-w-[680px] flex-col gap-6">
+              <h2 className="text-4xl font-semibold text-balance">Download LiveUse for your Mac</h2>
+              <p className="text-pretty text-lg">
+                Free, with a public checksum on each file. No account.
+              </p>
+              <PrimaryLink href="/#download">Download for Mac</PrimaryLink>
+            </section>
+          </Reveal>
+        </Band>
+      </main>
+    </SiteShell>
   );
 }
 
-function DownloadCard({ item, version }: { item: Download; version: string }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{item.name}</CardTitle>
-        <CardDescription>LiveUse {version}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <Badge variant="outline">{item.file}</Badge>
-        <p className="text-sm text-muted-foreground">{formatSize(item.size)}</p>
-        <p className="break-all font-mono text-xs text-muted-foreground">{item.sha256}</p>
-        <CopyHash value={item.sha256} />
-      </CardContent>
-      <CardFooter>
-        <a href={item.url} className={buttonVariants({ size: "lg" })}>
-          Descargar
-        </a>
-      </CardFooter>
-    </Card>
-  );
+function Band({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn("mx-auto w-full max-w-6xl px-4 sm:px-6", className)}>{children}</div>;
 }

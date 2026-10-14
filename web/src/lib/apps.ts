@@ -100,7 +100,7 @@ export async function getApps(): Promise<AppsManifest | null> {
 
 export function formatSize(size: number): string {
   const megabytes = size / (1024 * 1024);
-  const formatted = new Intl.NumberFormat("es", {
+  const formatted = new Intl.NumberFormat("en", {
     maximumFractionDigits: 1,
     minimumFractionDigits: megabytes < 10 ? 1 : 0,
   }).format(megabytes);
