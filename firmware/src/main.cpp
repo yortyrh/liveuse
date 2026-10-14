@@ -127,7 +127,7 @@ static void handleLine(char *line) {
   if (strcmp(cmd, "STATUS") == 0) {
     Serial.print(F("OK uptime_ms="));
     Serial.print(millis());
-    Serial.println(F(" fw=0.5.7"));
+    Serial.println(F(" fw=0.5.8"));
     return;
   }
 
@@ -335,9 +335,9 @@ void setup() {
 
   // Same version as the fw= literal. The host shows these instead of Seeeduino XIAO.
   TinyUSBDevice.setManufacturerDescriptor("LiveUse");
-  TinyUSBDevice.setProductDescriptor("LiveUse 0.5.7");
+  TinyUSBDevice.setProductDescriptor("LiveUse 0.5.8");
 
-  g_usbHid.setStringDescriptor("LiveUse Mouse 0.5.7");
+  g_usbHid.setStringDescriptor("LiveUse Mouse 0.5.8");
   g_usbHid.setPollInterval(2);
   g_usbHid.setReportDescriptor(desc_hid_report, sizeof(desc_hid_report));
 #if defined(HID_ITF_PROTOCOL_MOUSE)
@@ -346,7 +346,7 @@ void setup() {
   g_usbHid.begin();
   hid_report_set(0, desc_hid_report);
 
-  g_usbKeyboard.setStringDescriptor("LiveUse Keyboard 0.5.7");
+  g_usbKeyboard.setStringDescriptor("LiveUse Keyboard 0.5.8");
   g_usbKeyboard.setPollInterval(2);
   g_usbKeyboard.setReportDescriptor(desc_keyboard, sizeof(desc_keyboard));
   g_usbKeyboard.begin();
