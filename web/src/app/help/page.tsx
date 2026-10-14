@@ -196,6 +196,7 @@ function Shot({
         alt={alt}
         width={width}
         height={height}
+        sizes="(min-width: 1152px) 69rem, 100vw"
         className="h-auto w-full rounded-2xl border border-border"
       />
       <figcaption className="text-pretty text-sm text-muted-foreground">{caption}</figcaption>
