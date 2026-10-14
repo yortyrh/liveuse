@@ -132,15 +132,12 @@ export default function HelpPage() {
           <div className="flex max-w-[680px] flex-col gap-4">
             <h2 className="text-3xl font-semibold">The board</h2>
             <p className="text-pretty text-lg">
-              Today the sketch runs on a Seeed XIAO SAMD21. The first version used two FreeRTOS
-              tasks and a command queue. That became one Arduino loop, so TinyUSB can be pumped
-              from yield.
+              Today the sketch runs on a Seeed XIAO SAMD21. It uses FreeRTOS.
             </p>
             <p className="text-pretty text-base">
               This is a work in progress. Other boards are being explored, and the first steps are
-              underway for a smaller board that plugs straight into the computer. FreeRTOS is part
-              of that next work. The desktop app is macOS for now. Linux and Windows are in
-              progress.
+              underway for a smaller board that plugs straight into the computer. The desktop app
+              is macOS for now. Linux and Windows are in progress.
             </p>
           </div>
         </section>

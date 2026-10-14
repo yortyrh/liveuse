@@ -187,9 +187,7 @@ export default function Home() {
                   are in progress too.
                 </p>
                 <p className="text-pretty text-base">
-                  The first sketch used two FreeRTOS tasks and a command queue. On this XIAO that
-                  became one Arduino loop, so TinyUSB can be pumped from yield. FreeRTOS is part of
-                  the work on the boards that come next.
+                  The sketch uses FreeRTOS.
                 </p>
               </div>
             </Reveal>
