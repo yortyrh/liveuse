@@ -22,7 +22,7 @@ GitHub picks `releases/latest` from the date of the tagged commit, not from the 
 
 ## Publish
 
-`firmware/VERSION` is the version that will be published. The newest `CHANGELOG.md` heading has to already be that version. The script rewrites `fw=` and the USB product, mouse, and keyboard names in `src/main.cpp` and `README.md` so they match. When `firmware/VERSION`, `src/main.cpp`, `README.md`, or `CHANGELOG.md` differ from HEAD, it commits those files and tags `firmware-vX.Y.Z`. It does not choose a new version number, and it does not push. Any other uncommitted file stops the script.
+`firmware/VERSION` is the version that will be published. Set it first with `python3 scripts/version.py firmware`. `patch`, `minor`, `major`, and `mayor` increment that component. With no part, the patch number increments. `X.Y.Z` sets that version. The newest `CHANGELOG.md` heading has to already be that version. The script rewrites `fw=` and the USB product, mouse, and keyboard names in `src/main.cpp` and `README.md` so they match. When `firmware/VERSION`, `src/main.cpp`, `README.md`, or `CHANGELOG.md` differ from HEAD, it commits those files and tags `firmware-vX.Y.Z`. It does not choose a new version number, and it does not push. Any other uncommitted file stops the script.
 
 From the repository root:
 

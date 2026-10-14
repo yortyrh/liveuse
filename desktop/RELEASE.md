@@ -21,7 +21,7 @@ The site reads `apps.json`. It does not call `releases/latest`.
 
 ## Publish
 
-`desktop/package.json` and `desktop/src-tauri/tauri.conf.json` have to use the same `X.Y.Z` string. The working tree has to be clean. The script does not bump the version. The build runs on macOS and needs the Rust targets `x86_64-apple-darwin` and `aarch64-apple-darwin`.
+`desktop/package.json` and `desktop/src-tauri/tauri.conf.json` have to use the same `X.Y.Z` string. The working tree has to be clean. This script does not bump the version. Set it first with `python3 scripts/version.py app`. `patch`, `minor`, `major`, and `mayor` increment that component. With no part, the patch number increments. `X.Y.Z` sets that version. The build runs on macOS and needs the Rust targets `x86_64-apple-darwin` and `aarch64-apple-darwin`.
 
 From the repository root:
 
