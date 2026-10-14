@@ -171,9 +171,9 @@ export default function Home() {
         </Band>
 
         <Band className="py-12">
-          <section className="grid items-center gap-12 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+          <section className="grid items-start gap-8 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)] md:gap-12">
             <Reveal>
-              <div className="rounded-2xl bg-white p-6 shadow-md">
+              <div className="w-full max-w-[280px] overflow-hidden rounded-2xl bg-white shadow-md">
                 <XiaoBoard className="h-auto w-full" />
               </div>
             </Reveal>

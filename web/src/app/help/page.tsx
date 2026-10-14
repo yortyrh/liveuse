@@ -125,8 +125,8 @@ export default function HelpPage() {
           </p>
         </section>
 
-        <section className="grid items-center gap-12 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
-          <div className="rounded-2xl bg-white p-6 shadow-md">
+        <section className="grid items-start gap-8 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)] md:gap-12">
+          <div className="w-full max-w-[280px] overflow-hidden rounded-2xl bg-white shadow-md">
             <XiaoBoard className="h-auto w-full" />
           </div>
           <div className="flex max-w-[680px] flex-col gap-4">
