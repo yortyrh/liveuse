@@ -1,0 +1,358 @@
+{
+  "tool": "build-phase",
+  "version": 2,
+  "startedAt": "2026-10-14T04:30:16.011Z",
+  "comp": ".impeccable/mocks/decision/proof-strip.webp",
+  "direction": null,
+  "breakpoint": "1280x720",
+  "artifact": "web/src/app/page.tsx",
+  "phase": "hero",
+  "phases": {
+    "comps": {
+      "status": "skipped",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [
+        {
+          "at": "2026-10-14T04:30:16.011Z",
+          "text": "started with an approved comp; the comp round happened before this state (surface round or manual)"
+        }
+      ],
+      "gate": null,
+      "forced": null
+    },
+    "spec": {
+      "status": "closed",
+      "openedAt": "2026-10-14T04:30:16.011Z",
+      "closedAt": "2026-10-14T04:35:18.474Z",
+      "attempts": 1,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "11 regions, 3 plates, 6 text regions measured",
+        "at": "2026-10-14T04:35:18.473Z"
+      },
+      "forced": null
+    },
+    "plates": {
+      "status": "closed",
+      "openedAt": "2026-10-14T04:35:18.474Z",
+      "closedAt": "2026-10-14T04:42:39.246Z",
+      "attempts": 2,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "3/3 plates",
+        "at": "2026-10-14T04:42:39.230Z"
+      },
+      "forced": null
+    },
+    "hero": {
+      "status": "open",
+      "openedAt": "2026-10-14T04:42:39.246Z",
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": {
+        "ok": false,
+        "reasons": [
+          "hero overall 42.0% < 72% (structure 57%, color 71%, detail 18%)",
+          "region nav is missing (detail 0%, structure 86%): the comp shows material the build does not",
+          "region headline is missing (detail 11%, structure 60%): the comp shows material the build does not",
+          "region download is missing (detail 0%, structure 50%): the comp shows material the build does not",
+          "region checksum-line is missing (detail 0%, structure 87%): the comp shows material the build does not",
+          "region device-shot is missing (detail 4%, structure 75%): the comp shows material the build does not",
+          "region board is missing (detail 15%, structure 51%): the comp shows material the build does not",
+          "region share-shot is missing (detail 6%, structure 66%): the comp shows material the build does not",
+          "region caption-device is missing (detail 0%, structure 59%): the comp shows material the build does not",
+          "region caption-share is missing (detail 0%, structure 66%): the comp shows material the build does not",
+          "region how-it-works is missing (detail 0%, structure 54%): the comp shows material the build does not",
+          "region caption-board (text) is contradicted (structure 40%, detail added 24%): the composition of this text region differs from the comp; re-derive it from the spec box",
+          "plate share-shot is clipped at the bottom: the comp's artwork keeps a margin there (ink box 468x320 at 0,22 in the region) and the build's runs to the edge (468x232 at 0,136); size the box to the artwork's aspect and use object-fit: contain, or place the <img> at the artwork's own size, never cover on a narrower box",
+          "the build carries ink in 11 grid cells where the comp is calm (F1, G1, B6, G7, H7, F8, G8, E9, F9, G9, H9); nothing exists on the page that the comp does not show (a kicker, an extra nav item, a divider, a second row of controls); remove it or name it in a stated decision after the hero passes"
+        ],
+        "regionReasons": {
+          "nav": [
+            "region nav is missing (detail 0%, structure 86%): the comp shows material the build does not"
+          ],
+          "headline": [
+            "region headline is missing (detail 11%, structure 60%): the comp shows material the build does not"
+          ],
+          "download": [
+            "region download is missing (detail 0%, structure 50%): the comp shows material the build does not"
+          ],
+          "checksum-line": [
+            "region checksum-line is missing (detail 0%, structure 87%): the comp shows material the build does not"
+          ],
+          "device-shot": [
+            "region device-shot is missing (detail 4%, structure 75%): the comp shows material the build does not"
+          ],
+          "board": [
+            "region board is missing (detail 15%, structure 51%): the comp shows material the build does not"
+          ],
+          "share-shot": [
+            "region share-shot is missing (detail 6%, structure 66%): the comp shows material the build does not",
+            "plate share-shot is clipped at the bottom: the comp's artwork keeps a margin there (ink box 468x320 at 0,22 in the region) and the build's runs to the edge (468x232 at 0,136); size the box to the artwork's aspect and use object-fit: contain, or place the <img> at the artwork's own size, never cover on a narrower box"
+          ],
+          "caption-device": [
+            "region caption-device is missing (detail 0%, structure 59%): the comp shows material the build does not"
+          ],
+          "caption-share": [
+            "region caption-share is missing (detail 0%, structure 66%): the comp shows material the build does not"
+          ],
+          "how-it-works": [
+            "region how-it-works is missing (detail 0%, structure 54%): the comp shows material the build does not"
+          ],
+          "caption-board": [
+            "region caption-board (text) is contradicted (structure 40%, detail added 24%): the composition of this text region differs from the comp; re-derive it from the spec box"
+          ]
+        },
+        "summary": "hero 42% (drift)",
+        "score": 0.4198,
+        "verdict": "drift",
+        "report": ".impeccable/review/diff/hero/report.json",
+        "sideBySide": "/Users/yorty/Documents/PlatformIO/Projects/liveuse/.impeccable/review/diff/hero/side-by-side.png",
+        "worst": [
+          "download missing 30%",
+          "share-shot missing 35%",
+          "board missing 35%"
+        ],
+        "worstIds": [
+          "download",
+          "share-shot",
+          "board"
+        ],
+        "worstCrops": [
+          {
+            "id": "download",
+            "verdict": "missing",
+            "score": {
+              "overall": 0.3031,
+              "structure": 0.5023,
+              "color": 0.2174,
+              "colorIntersection": 0.0378,
+              "paletteMatch": 0.3141,
+              "detail": 0.0046,
+              "detailRaw": 0.0046,
+              "detailAdded": 0,
+              "bands": 0.4
+            },
+            "file": ".impeccable/review/diff/hero/regions/download.png"
+          },
+          {
+            "id": "share-shot",
+            "verdict": "missing",
+            "score": {
+              "overall": 0.3472,
+              "structure": 0.6611,
+              "color": 0.7147,
+              "colorIntersection": 0.5379,
+              "paletteMatch": 0.8099,
+              "detail": 0.0594,
+              "detailRaw": 0.2105,
+              "detailAdded": 0.3021,
+              "bands": 0.1857
+            },
+            "file": ".impeccable/review/diff/hero/regions/share-shot.png"
+          },
+          {
+            "id": "board",
+            "verdict": "missing",
+            "score": {
+              "overall": 0.3507,
+              "structure": 0.5136,
+              "color": 0.6365,
+              "colorIntersection": 0.4307,
+              "paletteMatch": 0.7473,
+              "detail": 0.1499,
+              "detailRaw": 0.2333,
+              "detailAdded": 0.1667,
+              "bands": 0.4
+            },
+            "file": ".impeccable/review/diff/hero/regions/board.png"
+          }
+        ],
+        "regionVerdicts": {
+          "nav": "missing",
+          "headline": "missing",
+          "download": "missing",
+          "checksum-line": "missing",
+          "device-shot": "missing",
+          "board": "missing",
+          "share-shot": "missing",
+          "caption-device": "missing",
+          "caption-board": "contradicted",
+          "caption-share": "missing",
+          "how-it-works": "missing"
+        },
+        "at": "2026-10-14T04:47:56.204Z"
+      },
+      "forced": null,
+      "readingsSeen": {},
+      "records": 1
+    },
+    "sections": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    },
+    "motion": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    },
+    "responsive": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    },
+    "review": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    }
+  },
+  "finish": null,
+  "plates": {
+    "device-shot": {
+      "id": "device-shot",
+      "file": "assets/plates/device-shot.png",
+      "status": "ok",
+      "assetHash": "8f8b56ee3d39c914c4d7e8e748d601981b533d27701f3312384538eb28b870d5",
+      "regionHash": "d6d38c224e3c85edc743e58a9f8da075b2849d874cadafaeb468b68c562eddef",
+      "referenceHash": "1e3dbe52bbda4b632bbdffb72128a0737cc3ff8f582fd889d1995fa9efd601eb",
+      "reference": {
+        "policy": "plate-reference-v2",
+        "excludedPixels": 4560,
+        "totalPixels": 151616,
+        "remainingPixels": 147056,
+        "excludedFraction": 0.030075981426762346,
+        "fullyExcluded": false,
+        "regions": [
+          {
+            "id": "checksum-line",
+            "kind": "text",
+            "cropPx": {
+              "x": 32,
+              "y": 0,
+              "w": 380,
+              "h": 12
+            },
+            "pixels": 4560
+          }
+        ],
+        "ignoredContainers": []
+      },
+      "compHash": "111a8664ffd39ac71ceeb2273adce2c3c74d60efcbca25ea074c990aed8cf216",
+      "size": "824x736",
+      "score": 0.4568
+    },
+    "board": {
+      "id": "board",
+      "file": "assets/plates/board.png",
+      "status": "ok",
+      "assetHash": "422b0b010f0986a7a596b342b02776be5067bff7626a5adc2295478fb123a848",
+      "regionHash": "e5766c98682441a54b2fa3795754f778707475d7575a4eeb8bf7bdaa51d26edc",
+      "referenceHash": "1e3dbe52bbda4b632bbdffb72128a0737cc3ff8f582fd889d1995fa9efd601eb",
+      "reference": {
+        "policy": "plate-reference-v2",
+        "excludedPixels": 7600,
+        "totalPixels": 201760,
+        "remainingPixels": 194160,
+        "excludedFraction": 0.03766851704996035,
+        "fullyExcluded": false,
+        "regions": [
+          {
+            "id": "checksum-line",
+            "kind": "text",
+            "cropPx": {
+              "x": 0,
+              "y": 0,
+              "w": 240,
+              "h": 12
+            },
+            "pixels": 2880
+          },
+          {
+            "id": "caption-board",
+            "kind": "text",
+            "cropPx": {
+              "x": 50,
+              "y": 368,
+              "w": 170,
+              "h": 20
+            },
+            "pixels": 3400
+          },
+          {
+            "id": "caption-share",
+            "kind": "text",
+            "cropPx": {
+              "x": 460,
+              "y": 366,
+              "w": 60,
+              "h": 22
+            },
+            "pixels": 1320
+          }
+        ],
+        "ignoredContainers": []
+      },
+      "compHash": "111a8664ffd39ac71ceeb2273adce2c3c74d60efcbca25ea074c990aed8cf216",
+      "size": "1040x776",
+      "score": 0.5561
+    },
+    "share-shot": {
+      "id": "share-shot",
+      "file": "assets/plates/share-shot.png",
+      "status": "ok",
+      "assetHash": "3c43c7e369c456988468e92aa6ed46df6def0040b4d70d250d6b0a16bd19e45c",
+      "regionHash": "e767f5738a48d961e3bdc9f9678b218771a851db79fd0c7f8c3796ee2a56068c",
+      "referenceHash": "1e3dbe52bbda4b632bbdffb72128a0737cc3ff8f582fd889d1995fa9efd601eb",
+      "reference": {
+        "policy": "plate-reference-v2",
+        "excludedPixels": 720,
+        "totalPixels": 172224,
+        "remainingPixels": 171504,
+        "excludedFraction": 0.004180602006688963,
+        "fullyExcluded": false,
+        "regions": [
+          {
+            "id": "caption-share",
+            "kind": "text",
+            "cropPx": {
+              "x": 40,
+              "y": 366,
+              "w": 360,
+              "h": 2
+            },
+            "pixels": 720
+          }
+        ],
+        "ignoredContainers": []
+      },
+      "compHash": "111a8664ffd39ac71ceeb2273adce2c3c74d60efcbca25ea074c990aed8cf216",
+      "size": "936x736",
+      "score": 0.5948
+    }
+  }
+}

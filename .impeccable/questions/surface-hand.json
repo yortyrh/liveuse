@@ -1,0 +1,43 @@
+{
+  "title": "Choose the page composition",
+  "question": "The look stays the one the site already has. Which composition should the Mac download page use?",
+  "options": [
+    {
+      "id": "proof-strip",
+      "label": "The proof strip",
+      "kicker": "THE ROLL",
+      "thesis": "One line and the download, then a strip of the real Device tab, the board, and the Share tab.",
+      "palette": ["#e6e6e6", "#171717", "#ffffff", "#b45309"],
+      "materials": ["the site's gray ground", "white surfaces", "the blue download button", "amber only on the word LiveUse"],
+      "viewport": "Download LiveUse for Mac and the download control sit at the top. Under them, three real pictures run edge to edge: the Device tab, the XIAO, and the Share tab. Short captions on those pictures carry the two jobs. The next section just begins.",
+      "risk": "The strip can turn into a gallery and push the button out of the first glance.",
+      "comp": ".impeccable/mocks/decision/proof-strip.webp"
+    },
+    {
+      "id": "shared-download",
+      "label": "The shared download",
+      "thesis": "One download bar across the top. Under it, the two jobs are equal columns, and neither owns the button.",
+      "palette": ["#e6e6e6", "#171717", "#ffffff", "#b45309"],
+      "materials": ["the site's gray ground", "white surfaces", "the blue download button", "amber only on the word LiveUse"],
+      "viewport": "Apple Silicon and Intel sit in one bar, each with its size and SHA256. Below, On this Mac and From another computer split the page. The token sentence is written once under both.",
+      "risk": "Two columns can start to look like a headline beside a screenshot.",
+      "comp": ".impeccable/mocks/decision/shared-download.webp"
+    },
+    {
+      "id": "two-doors",
+      "label": "Two doors",
+      "thesis": "The download is a compact bar already settled. The page then offers two doors: this Mac, or another computer.",
+      "palette": ["#e6e6e6", "#171717", "#ffffff", "#b45309"],
+      "materials": ["the site's gray ground", "white surfaces", "the blue download button", "amber only on the word LiveUse"],
+      "viewport": "A thin bar names LiveUse for Mac and the two installers. Under it, two large entries read On this Mac and From another computer. The token sentence crosses both.",
+      "risk": "The doors can outweigh the download the visitor came to click.",
+      "comp": ".impeccable/mocks/decision/two-doors.webp"
+    }
+  ],
+  "reroll": true,
+  "steer": true,
+  "buildPath": {
+    "value": "comp",
+    "toggle": true
+  }
+}

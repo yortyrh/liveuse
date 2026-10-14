@@ -1,0 +1,691 @@
+{
+  "tool": "comp-spec inspect-map",
+  "version": 1,
+  "referenceOnly": true,
+  "stateChanged": false,
+  "comp": ".impeccable/mocks/decision/proof-strip.webp",
+  "compSize": {
+    "width": 1280,
+    "height": 720
+  },
+  "inputRegionCount": 11,
+  "regions": [
+    {
+      "id": "nav",
+      "kind": "chrome",
+      "note": "Pill navigation with the LiveUse mark, Download, Setup, Questions, Help, and the theme icon.",
+      "grid": null,
+      "box": {
+        "x": 0.2891,
+        "y": 0.0222,
+        "w": 0.4219,
+        "h": 0.0667
+      },
+      "px": {
+        "x": 370,
+        "y": 16,
+        "w": 540,
+        "h": 48
+      },
+      "aspect": 11.25,
+      "palette": [
+        {
+          "hex": "#f7f7f6",
+          "coverage": 0.9194
+        },
+        {
+          "hex": "#545350",
+          "coverage": 0.0356
+        },
+        {
+          "hex": "#c6c2bd",
+          "coverage": 0.0209
+        },
+        {
+          "hex": "#868681",
+          "coverage": 0.014
+        },
+        {
+          "hex": "#171717",
+          "coverage": 0.0101
+        }
+      ],
+      "detail": {
+        "energy": 19.5738
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "surface": {
+        "flat": false,
+        "rules": false
+      },
+      "number": 1,
+      "cropPath": "region-1.png"
+    },
+    {
+      "id": "headline",
+      "kind": "text",
+      "note": "Left-aligned line Download LiveUse for Mac, amber only on the word LiveUse.",
+      "grid": null,
+      "box": {
+        "x": 0.0375,
+        "y": 0.125,
+        "w": 0.4688,
+        "h": 0.075
+      },
+      "px": {
+        "x": 48,
+        "y": 90,
+        "w": 600,
+        "h": 54
+      },
+      "aspect": 11.1111,
+      "palette": [
+        {
+          "hex": "#e8e8e7",
+          "coverage": 0.76
+        },
+        {
+          "hex": "#1d1d1d",
+          "coverage": 0.1321
+        },
+        {
+          "hex": "#d59621",
+          "coverage": 0.0559
+        },
+        {
+          "hex": "#f6e6c0",
+          "coverage": 0.0272
+        },
+        {
+          "hex": "#a3a3a3",
+          "coverage": 0.0248
+        }
+      ],
+      "detail": {
+        "energy": 75.0785
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "surface": {
+        "flat": false,
+        "rules": false
+      },
+      "number": 2,
+      "cropPath": "region-2.png"
+    },
+    {
+      "id": "download",
+      "kind": "control",
+      "note": "Blue button labeled Download for Mac.",
+      "grid": null,
+      "box": {
+        "x": 0.0313,
+        "y": 0.2056,
+        "w": 0.1641,
+        "h": 0.0889
+      },
+      "px": {
+        "x": 40,
+        "y": 148,
+        "w": 210,
+        "h": 64
+      },
+      "aspect": 3.2813,
+      "palette": [
+        {
+          "hex": "#e7e9eb",
+          "coverage": 0.4236
+        },
+        {
+          "hex": "#4883f4",
+          "coverage": 0.3951
+        },
+        {
+          "hex": "#547fd5",
+          "coverage": 0.1248
+        },
+        {
+          "hex": "#678dc9",
+          "coverage": 0.0359
+        },
+        {
+          "hex": "#bbdef6",
+          "coverage": 0.0206
+        }
+      ],
+      "detail": {
+        "energy": 19.5368
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "surface": {
+        "flat": false,
+        "rules": false
+      },
+      "number": 3,
+      "cropPath": "region-3.png"
+    },
+    {
+      "id": "checksum-line",
+      "kind": "text",
+      "note": "Free on macOS, with a public checksum. Linux and Windows are in progress.",
+      "grid": null,
+      "box": {
+        "x": 0.0375,
+        "y": 0.2944,
+        "w": 0.4375,
+        "h": 0.0444
+      },
+      "px": {
+        "x": 48,
+        "y": 212,
+        "w": 560,
+        "h": 32
+      },
+      "aspect": 17.5,
+      "palette": [
+        {
+          "hex": "#e9e9e9",
+          "coverage": 0.8186
+        },
+        {
+          "hex": "#232323",
+          "coverage": 0.0687
+        },
+        {
+          "hex": "#b9b9b9",
+          "coverage": 0.0439
+        },
+        {
+          "hex": "#898989",
+          "coverage": 0.0366
+        },
+        {
+          "hex": "#565656",
+          "coverage": 0.0322
+        }
+      ],
+      "detail": {
+        "energy": 41.9384
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "surface": {
+        "flat": false,
+        "rules": false
+      },
+      "number": 4,
+      "cropPath": "region-4.png"
+    },
+    {
+      "id": "device-shot",
+      "kind": "image",
+      "note": "Photograph of the LiveUse Device tab with the board connected.",
+      "grid": null,
+      "box": {
+        "x": 0.0156,
+        "y": 0.3556,
+        "w": 0.3125,
+        "h": 0.4833
+      },
+      "px": {
+        "x": 20,
+        "y": 256,
+        "w": 400,
+        "h": 348
+      },
+      "aspect": 1.1494,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9586
+        },
+        {
+          "hex": "#c4c4c5",
+          "coverage": 0.0255
+        },
+        {
+          "hex": "#939191",
+          "coverage": 0.007
+        },
+        {
+          "hex": "#6d6664",
+          "coverage": 0.0067
+        },
+        {
+          "hex": "#343434",
+          "coverage": 0.0022
+        }
+      ],
+      "detail": {
+        "energy": 9.4309
+      },
+      "medium": "raster",
+      "plate": "assets/plates/device-shot.png",
+      "text": null,
+      "number": 5,
+      "reference": {
+        "policy": "plate-reference-v2",
+        "excludedPixels": 0,
+        "totalPixels": 139200,
+        "remainingPixels": 139200,
+        "excludedFraction": 0.0,
+        "fullyExcluded": false,
+        "regions": [],
+        "ignoredContainers": []
+      },
+      "cropPath": "region-5.png",
+      "referencePath": "reference-5.png"
+    },
+    {
+      "id": "board",
+      "kind": "image",
+      "note": "Photograph of the Seeed XIAO SAMD21 board.",
+      "grid": null,
+      "box": {
+        "x": 0.3281,
+        "y": 0.3583,
+        "w": 0.3828,
+        "h": 0.5139
+      },
+      "px": {
+        "x": 420,
+        "y": 258,
+        "w": 490,
+        "h": 370
+      },
+      "aspect": 1.3243,
+      "palette": [
+        {
+          "hex": "#f6f5f6",
+          "coverage": 0.8002
+        },
+        {
+          "hex": "#79716f",
+          "coverage": 0.0779
+        },
+        {
+          "hex": "#232021",
+          "coverage": 0.0587
+        },
+        {
+          "hex": "#b6b0ad",
+          "coverage": 0.0363
+        },
+        {
+          "hex": "#bf9c70",
+          "coverage": 0.027
+        }
+      ],
+      "detail": {
+        "energy": 28.0835
+      },
+      "medium": "raster",
+      "plate": "assets/plates/board.png",
+      "text": null,
+      "number": 6,
+      "reference": {
+        "policy": "plate-reference-v2",
+        "excludedPixels": 4940,
+        "totalPixels": 181300,
+        "remainingPixels": 176360,
+        "excludedFraction": 0.02724765581908439,
+        "fullyExcluded": false,
+        "regions": [
+          {
+            "id": "caption-board",
+            "kind": "text",
+            "cropPx": {
+              "x": 10,
+              "y": 350,
+              "w": 170,
+              "h": 20
+            },
+            "pixels": 3400
+          },
+          {
+            "id": "caption-share",
+            "kind": "text",
+            "cropPx": {
+              "x": 420,
+              "y": 348,
+              "w": 70,
+              "h": 22
+            },
+            "pixels": 1540
+          }
+        ],
+        "ignoredContainers": []
+      },
+      "cropPath": "region-6.png",
+      "referencePath": "reference-6.png"
+    },
+    {
+      "id": "share-shot",
+      "kind": "image",
+      "note": "Photograph of the LiveUse Share tab with the URL, token, and MCP configuration.",
+      "grid": null,
+      "box": {
+        "x": 0.6406,
+        "y": 0.3556,
+        "w": 0.3438,
+        "h": 0.4833
+      },
+      "px": {
+        "x": 820,
+        "y": 256,
+        "w": 440,
+        "h": 348
+      },
+      "aspect": 1.2644,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9718
+        },
+        {
+          "hex": "#b3b3b3",
+          "coverage": 0.0167
+        },
+        {
+          "hex": "#4c84e7",
+          "coverage": 0.0076
+        },
+        {
+          "hex": "#828282",
+          "coverage": 0.0029
+        },
+        {
+          "hex": "#88a8e8",
+          "coverage": 0.001
+        }
+      ],
+      "detail": {
+        "energy": 8.5103
+      },
+      "medium": "raster",
+      "plate": "assets/plates/share-shot.png",
+      "text": null,
+      "number": 7,
+      "reference": {
+        "policy": "plate-reference-v2",
+        "excludedPixels": 0,
+        "totalPixels": 153120,
+        "remainingPixels": 153120,
+        "excludedFraction": 0.0,
+        "fullyExcluded": false,
+        "regions": [],
+        "ignoredContainers": []
+      },
+      "cropPath": "region-7.png",
+      "referencePath": "reference-7.png"
+    },
+    {
+      "id": "caption-device",
+      "kind": "text",
+      "note": "Caption: On this Mac, the board is connected.",
+      "grid": null,
+      "box": {
+        "x": 0.0187,
+        "y": 0.8444,
+        "w": 0.2031,
+        "h": 0.0389
+      },
+      "px": {
+        "x": 24,
+        "y": 608,
+        "w": 260,
+        "h": 28
+      },
+      "aspect": 9.2857,
+      "palette": [
+        {
+          "hex": "#e8e8e8",
+          "coverage": 0.894
+        },
+        {
+          "hex": "#a4a4a4",
+          "coverage": 0.0507
+        },
+        {
+          "hex": "#1b1b1b",
+          "coverage": 0.0357
+        },
+        {
+          "hex": "#454848",
+          "coverage": 0.0138
+        },
+        {
+          "hex": "#787875",
+          "coverage": 0.0058
+        }
+      ],
+      "detail": {
+        "energy": 59.6682
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "surface": {
+        "flat": false,
+        "rules": false
+      },
+      "number": 8,
+      "cropPath": "region-8.png"
+    },
+    {
+      "id": "caption-board",
+      "kind": "text",
+      "note": "Caption: Seeed XIAO SAMD21.",
+      "grid": null,
+      "box": {
+        "x": 0.3359,
+        "y": 0.8444,
+        "w": 0.1328,
+        "h": 0.0389
+      },
+      "px": {
+        "x": 430,
+        "y": 608,
+        "w": 170,
+        "h": 28
+      },
+      "aspect": 6.0714,
+      "palette": [
+        {
+          "hex": "#e8e9e9",
+          "coverage": 0.8737
+        },
+        {
+          "hex": "#b6b6b6",
+          "coverage": 0.0404
+        },
+        {
+          "hex": "#101010",
+          "coverage": 0.0316
+        },
+        {
+          "hex": "#6e6e6e",
+          "coverage": 0.0298
+        },
+        {
+          "hex": "#373737",
+          "coverage": 0.0246
+        }
+      ],
+      "detail": {
+        "energy": 40.6696
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "surface": {
+        "flat": false,
+        "rules": false
+      },
+      "number": 9,
+      "cropPath": "region-9.png"
+    },
+    {
+      "id": "caption-share",
+      "kind": "text",
+      "note": "Caption: From another computer, copy the URL and the token.",
+      "grid": null,
+      "box": {
+        "x": 0.6563,
+        "y": 0.8417,
+        "w": 0.2813,
+        "h": 0.0417
+      },
+      "px": {
+        "x": 840,
+        "y": 606,
+        "w": 360,
+        "h": 30
+      },
+      "aspect": 12,
+      "palette": [
+        {
+          "hex": "#e8e8e8",
+          "coverage": 0.8274
+        },
+        {
+          "hex": "#161716",
+          "coverage": 0.0776
+        },
+        {
+          "hex": "#494a49",
+          "coverage": 0.0492
+        },
+        {
+          "hex": "#757676",
+          "coverage": 0.0284
+        },
+        {
+          "hex": "#acacac",
+          "coverage": 0.0175
+        }
+      ],
+      "detail": {
+        "energy": 51.555
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "surface": {
+        "flat": false,
+        "rules": false
+      },
+      "number": 10,
+      "cropPath": "region-10.png"
+    },
+    {
+      "id": "how-it-works",
+      "kind": "text",
+      "note": "The heading How it works, only the start of the next section.",
+      "grid": null,
+      "box": {
+        "x": 0.0313,
+        "y": 0.9389,
+        "w": 0.125,
+        "h": 0.05
+      },
+      "px": {
+        "x": 40,
+        "y": 676,
+        "w": 160,
+        "h": 36
+      },
+      "aspect": 4.4444,
+      "palette": [
+        {
+          "hex": "#e8e8e8",
+          "coverage": 0.8194
+        },
+        {
+          "hex": "#1e1e1e",
+          "coverage": 0.091
+        },
+        {
+          "hex": "#515151",
+          "coverage": 0.037
+        },
+        {
+          "hex": "#8a8a8a",
+          "coverage": 0.0324
+        },
+        {
+          "hex": "#b1b1b1",
+          "coverage": 0.0201
+        }
+      ],
+      "detail": {
+        "energy": 34.1708
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "surface": {
+        "flat": false,
+        "rules": false
+      },
+      "number": 11,
+      "cropPath": "region-11.png"
+    }
+  ],
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "foreground-mask",
+      "regionId": "board",
+      "message": "caption-board, caption-share exclude 2.7% of this reference. Check that the excluded pixels contain foreground, not artwork between separate text elements. Split overly broad foreground bounds; review grouping must not change geometry."
+    },
+    {
+      "severity": "warning",
+      "code": "uncovered-ink",
+      "regionId": null,
+      "message": "5 grid cells have detail outside named regions. This is a coverage heuristic, not proof of missing components."
+    }
+  ],
+  "overlaps": [
+    {
+      "a": "board",
+      "b": "share-shot",
+      "pixels": 31140.0,
+      "relationship": "overlapping elements"
+    },
+    {
+      "a": "board",
+      "b": "caption-board",
+      "pixels": 3400.0,
+      "relationship": "overlapping elements"
+    },
+    {
+      "a": "board",
+      "b": "caption-share",
+      "pixels": 1540.0,
+      "relationship": "overlapping elements"
+    }
+  ],
+  "reviewGroups": {},
+  "uncoveredInkCells": [
+    "A3",
+    "B3",
+    "C3",
+    "D3",
+    "E3"
+  ],
+  "comparisonSheets": [
+    {
+      "path": "comparison-1.png",
+      "regionIds": [
+        "board"
+      ]
+    }
+  ]
+}

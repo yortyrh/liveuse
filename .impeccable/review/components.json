@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 3,
+  "stage": "components",
+  "id": "components",
+  "title": "Plan and asset review · web/src/app/page.tsx",
+  "comp": {
+    "path": ".impeccable/mocks/decision/proof-strip.webp",
+    "width": 1280,
+    "height": 720
+  },
+  "specSha256": "c0227218cc5113f9c602ad8215d452a3a0d13ac76427a569c434db7693022975",
+  "components": [
+    {
+      "id": "device-shot",
+      "name": "Device shot",
+      "kind": "image",
+      "role": "asset",
+      "box": {
+        "x": 0.0063,
+        "y": 0.3333,
+        "w": 0.3219,
+        "h": 0.5111
+      },
+      "note": "Photograph of the LiveUse Device tab with the board connected.",
+      "medium": "raster",
+      "preview": {
+        "kind": "image",
+        "path": "assets/plates/device-shot.png"
+      },
+      "dependencies": []
+    },
+    {
+      "id": "board",
+      "name": "Board",
+      "kind": "image",
+      "role": "asset",
+      "box": {
+        "x": 0.2969,
+        "y": 0.3333,
+        "w": 0.4063,
+        "h": 0.5389
+      },
+      "note": "Photograph of the Seeed XIAO SAMD21 board.",
+      "medium": "raster",
+      "preview": {
+        "kind": "image",
+        "path": "assets/plates/board.png"
+      },
+      "dependencies": []
+    },
+    {
+      "id": "share-shot",
+      "name": "Share shot",
+      "kind": "image",
+      "role": "asset",
+      "box": {
+        "x": 0.625,
+        "y": 0.3333,
+        "w": 0.3656,
+        "h": 0.5111
+      },
+      "note": "Photograph of the LiveUse Share tab with the URL, token, and MCP configuration.",
+      "medium": "raster",
+      "preview": {
+        "kind": "image",
+        "path": "assets/plates/share-shot.png"
+      },
+      "dependencies": []
+    },
+    {
+      "id": "nav",
+      "name": "Nav",
+      "kind": "chrome",
+      "role": "plan",
+      "box": {
+        "x": 0.2891,
+        "y": 0.0222,
+        "w": 0.4219,
+        "h": 0.0667
+      },
+      "note": "Pill navigation with the LiveUse mark, Download, Setup, Questions, Help, and the theme icon.",
+      "medium": "code",
+      "preview": {
+        "kind": "comp-crop"
+      },
+      "codeDrawn": false,
+      "dependencies": []
+    }
+  ],
+  "codeRegions": [
+    {
+      "id": "headline",
+      "name": "Headline",
+      "kind": "text",
+      "box": {
+        "x": 0.0375,
+        "y": 0.125,
+        "w": 0.4688,
+        "h": 0.075
+      },
+      "note": "Left-aligned line Download LiveUse for Mac, amber only on the word LiveUse."
+    },
+    {
+      "id": "download",
+      "name": "Download",
+      "kind": "control",
+      "box": {
+        "x": 0.0313,
+        "y": 0.2056,
+        "w": 0.1641,
+        "h": 0.0889
+      },
+      "note": "Blue button labeled Download for Mac."
+    },
+    {
+      "id": "checksum-line",
+      "name": "Checksum line",
+      "kind": "text",
+      "box": {
+        "x": 0.0313,
+        "y": 0.2889,
+        "w": 0.4531,
+        "h": 0.0611
+      },
+      "note": "Free on macOS, with a public checksum. Linux and Windows are in progress."
+    },
+    {
+      "id": "caption-device",
+      "name": "Caption device",
+      "kind": "text",
+      "box": {
+        "x": 0.0187,
+        "y": 0.8444,
+        "w": 0.2031,
+        "h": 0.0389
+      },
+      "note": "Caption: On this Mac, the board is connected."
+    },
+    {
+      "id": "caption-board",
+      "name": "Caption board",
+      "kind": "text",
+      "box": {
+        "x": 0.3359,
+        "y": 0.8444,
+        "w": 0.1328,
+        "h": 0.0389
+      },
+      "note": "Caption: Seeed XIAO SAMD21."
+    },
+    {
+      "id": "caption-share",
+      "name": "Caption share",
+      "kind": "text",
+      "box": {
+        "x": 0.6563,
+        "y": 0.8417,
+        "w": 0.2813,
+        "h": 0.0417
+      },
+      "note": "Caption: From another computer, copy the URL and the token."
+    },
+    {
+      "id": "how-it-works",
+      "name": "How it works",
+      "kind": "text",
+      "box": {
+        "x": 0.0313,
+        "y": 0.9389,
+        "w": 0.125,
+        "h": 0.05
+      },
+      "note": "The heading How it works, only the start of the next section."
+    }
+  ]
+}

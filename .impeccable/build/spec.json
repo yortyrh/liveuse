@@ -1,0 +1,758 @@
+{
+  "tool": "comp-spec",
+  "version": 1,
+  "createdAt": "2026-10-14T04:34:41.437Z",
+  "comp": ".impeccable/mocks/decision/proof-strip.webp",
+  "warnings": [],
+  "uncoveredInkCells": [],
+  "compSize": {
+    "width": 1280,
+    "height": 720
+  },
+  "aspect": 1.7778,
+  "orientation": "landscape",
+  "palette": [
+    {
+      "hex": "#f0f0f0",
+      "coverage": 0.9455
+    },
+    {
+      "hex": "#1e1c1d",
+      "coverage": 0.0167
+    },
+    {
+      "hex": "#7e7776",
+      "coverage": 0.0151
+    },
+    {
+      "hex": "#b2b1b1",
+      "coverage": 0.0142
+    },
+    {
+      "hex": "#4d4a4a",
+      "coverage": 0.0086
+    }
+  ],
+  "bands": [
+    {
+      "y": 0.1528,
+      "strength": 0.3225
+    },
+    {
+      "y": 0.1806,
+      "strength": 0.3292
+    },
+    {
+      "y": 0.2778,
+      "strength": 0.2048
+    },
+    {
+      "y": 0.3056,
+      "strength": 0.3227
+    },
+    {
+      "y": 0.8333,
+      "strength": 0.2872
+    },
+    {
+      "y": 0.875,
+      "strength": 0.3543
+    }
+  ],
+  "regions": [
+    {
+      "id": "nav",
+      "kind": "chrome",
+      "note": "Pill navigation with the LiveUse mark, Download, Setup, Questions, Help, and the theme icon.",
+      "grid": null,
+      "box": {
+        "x": 0.2891,
+        "y": 0.0222,
+        "w": 0.4219,
+        "h": 0.0667
+      },
+      "px": {
+        "x": 370,
+        "y": 16,
+        "w": 540,
+        "h": 48
+      },
+      "aspect": 11.25,
+      "palette": [
+        {
+          "hex": "#f7f7f6",
+          "coverage": 0.9194
+        },
+        {
+          "hex": "#545350",
+          "coverage": 0.0356
+        },
+        {
+          "hex": "#c6c2bd",
+          "coverage": 0.0209
+        },
+        {
+          "hex": "#868681",
+          "coverage": 0.014
+        },
+        {
+          "hex": "#171717",
+          "coverage": 0.0101
+        }
+      ],
+      "detail": {
+        "energy": 19.5738
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "surface": {
+        "flat": false,
+        "rules": false
+      }
+    },
+    {
+      "id": "headline",
+      "kind": "text",
+      "note": "Left-aligned line Download LiveUse for Mac, amber only on the word LiveUse.",
+      "grid": null,
+      "box": {
+        "x": 0.0375,
+        "y": 0.125,
+        "w": 0.4688,
+        "h": 0.075
+      },
+      "px": {
+        "x": 48,
+        "y": 90,
+        "w": 600,
+        "h": 54
+      },
+      "aspect": 11.1111,
+      "palette": [
+        {
+          "hex": "#e8e8e7",
+          "coverage": 0.76
+        },
+        {
+          "hex": "#1d1d1d",
+          "coverage": 0.1321
+        },
+        {
+          "hex": "#d59621",
+          "coverage": 0.0559
+        },
+        {
+          "hex": "#f6e6c0",
+          "coverage": 0.0272
+        },
+        {
+          "hex": "#a3a3a3",
+          "coverage": 0.0248
+        }
+      ],
+      "detail": {
+        "energy": 75.0785
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "surface": {
+        "flat": false,
+        "rules": false
+      },
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 14,
+          "capHeightPx": 33.6,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6988,
+          "advTall": 0.7136,
+          "advX": 0.6839,
+          "gap": 0.1189,
+          "xRatio": 0.7434,
+          "stemW": 0.18,
+          "contrast": 1.1645,
+          "serif": null,
+          "densTall": 0.546,
+          "densX": 0.5479,
+          "weight": 0.546
+        },
+        "widthClass": "normal",
+        "weightClass": "medium",
+        "chosen": {
+          "family": "Asta Sans",
+          "weight": 700,
+          "fontSizePx": 48,
+          "source": "catalog",
+          "estimatedSize": true,
+          "stamp": "ec52d6edd088"
+        }
+      }
+    },
+    {
+      "id": "download",
+      "kind": "control",
+      "note": "Blue button labeled Download for Mac.",
+      "grid": null,
+      "box": {
+        "x": 0.0313,
+        "y": 0.2056,
+        "w": 0.1641,
+        "h": 0.0889
+      },
+      "px": {
+        "x": 40,
+        "y": 148,
+        "w": 210,
+        "h": 64
+      },
+      "aspect": 3.2813,
+      "palette": [
+        {
+          "hex": "#e7e9eb",
+          "coverage": 0.4236
+        },
+        {
+          "hex": "#4883f4",
+          "coverage": 0.3951
+        },
+        {
+          "hex": "#547fd5",
+          "coverage": 0.1248
+        },
+        {
+          "hex": "#678dc9",
+          "coverage": 0.0359
+        },
+        {
+          "hex": "#bbdef6",
+          "coverage": 0.0206
+        }
+      ],
+      "detail": {
+        "energy": 19.5368
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "surface": {
+        "flat": false,
+        "rules": false
+      }
+    },
+    {
+      "id": "checksum-line",
+      "kind": "text",
+      "note": "Free on macOS, with a public checksum. Linux and Windows are in progress.",
+      "grid": null,
+      "box": {
+        "x": 0.0313,
+        "y": 0.2889,
+        "w": 0.4531,
+        "h": 0.0611
+      },
+      "px": {
+        "x": 40,
+        "y": 208,
+        "w": 580,
+        "h": 44
+      },
+      "aspect": 13.1818,
+      "palette": [
+        {
+          "hex": "#e8e8e8",
+          "coverage": 0.8949
+        },
+        {
+          "hex": "#232323",
+          "coverage": 0.0452
+        },
+        {
+          "hex": "#ababab",
+          "coverage": 0.0238
+        },
+        {
+          "hex": "#777777",
+          "coverage": 0.0183
+        },
+        {
+          "hex": "#505050",
+          "coverage": 0.0179
+        }
+      ],
+      "detail": {
+        "energy": 29.5722
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "surface": {
+        "flat": false,
+        "rules": false
+      },
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 56,
+          "capHeightPx": 11.8,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6212,
+          "advTall": 0.607,
+          "advX": 0.6212,
+          "gap": 0.1129,
+          "xRatio": 0.7254,
+          "stemW": 0.1735,
+          "contrast": 1.0576,
+          "serif": 0.473,
+          "densTall": 0.5351,
+          "densX": 0.5743,
+          "weight": 0.5351
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "device-shot",
+      "kind": "image",
+      "note": "Photograph of the LiveUse Device tab with the board connected.",
+      "grid": null,
+      "box": {
+        "x": 0.0063,
+        "y": 0.3333,
+        "w": 0.3219,
+        "h": 0.5111
+      },
+      "px": {
+        "x": 8,
+        "y": 240,
+        "w": 412,
+        "h": 368
+      },
+      "aspect": 1.1196,
+      "palette": [
+        {
+          "hex": "#f6f6f6",
+          "coverage": 0.9685
+        },
+        {
+          "hex": "#b4b4b5",
+          "coverage": 0.0178
+        },
+        {
+          "hex": "#7a7474",
+          "coverage": 0.0077
+        },
+        {
+          "hex": "#4d7bd9",
+          "coverage": 0.0034
+        },
+        {
+          "hex": "#353531",
+          "coverage": 0.0026
+        }
+      ],
+      "detail": {
+        "energy": 9.5918
+      },
+      "medium": "raster",
+      "plate": "assets/plates/device-shot.png",
+      "text": null
+    },
+    {
+      "id": "board",
+      "kind": "image",
+      "note": "Photograph of the Seeed XIAO SAMD21 board.",
+      "grid": null,
+      "box": {
+        "x": 0.2969,
+        "y": 0.3333,
+        "w": 0.4063,
+        "h": 0.5389
+      },
+      "px": {
+        "x": 380,
+        "y": 240,
+        "w": 520,
+        "h": 388
+      },
+      "aspect": 1.3402,
+      "palette": [
+        {
+          "hex": "#f5f5f5",
+          "coverage": 0.8297
+        },
+        {
+          "hex": "#242121",
+          "coverage": 0.0516
+        },
+        {
+          "hex": "#847a77",
+          "coverage": 0.0506
+        },
+        {
+          "hex": "#5b5857",
+          "coverage": 0.0355
+        },
+        {
+          "hex": "#b6b0ae",
+          "coverage": 0.0327
+        }
+      ],
+      "detail": {
+        "energy": 26.2387
+      },
+      "medium": "raster",
+      "plate": "assets/plates/board.png",
+      "text": null
+    },
+    {
+      "id": "share-shot",
+      "kind": "image",
+      "note": "Photograph of the LiveUse Share tab with the URL, token, and MCP configuration.",
+      "grid": null,
+      "box": {
+        "x": 0.625,
+        "y": 0.3333,
+        "w": 0.3656,
+        "h": 0.5111
+      },
+      "px": {
+        "x": 800,
+        "y": 240,
+        "w": 468,
+        "h": 368
+      },
+      "aspect": 1.2717,
+      "palette": [
+        {
+          "hex": "#f6f6f6",
+          "coverage": 0.9752
+        },
+        {
+          "hex": "#b1b1b2",
+          "coverage": 0.0159
+        },
+        {
+          "hex": "#4886f0",
+          "coverage": 0.0037
+        },
+        {
+          "hex": "#7c7c7c",
+          "coverage": 0.003
+        },
+        {
+          "hex": "#a2c2f2",
+          "coverage": 0.0023
+        }
+      ],
+      "detail": {
+        "energy": 8.0371
+      },
+      "medium": "raster",
+      "plate": "assets/plates/share-shot.png",
+      "text": null
+    },
+    {
+      "id": "caption-device",
+      "kind": "text",
+      "note": "Caption: On this Mac, the board is connected.",
+      "grid": null,
+      "box": {
+        "x": 0.0187,
+        "y": 0.8444,
+        "w": 0.2031,
+        "h": 0.0389
+      },
+      "px": {
+        "x": 24,
+        "y": 608,
+        "w": 260,
+        "h": 28
+      },
+      "aspect": 9.2857,
+      "palette": [
+        {
+          "hex": "#e8e8e8",
+          "coverage": 0.894
+        },
+        {
+          "hex": "#a4a4a4",
+          "coverage": 0.0507
+        },
+        {
+          "hex": "#1b1b1b",
+          "coverage": 0.0357
+        },
+        {
+          "hex": "#454848",
+          "coverage": 0.0138
+        },
+        {
+          "hex": "#787875",
+          "coverage": 0.0058
+        }
+      ],
+      "detail": {
+        "energy": 59.6682
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "surface": {
+        "flat": false,
+        "rules": false
+      },
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 28,
+          "capHeightPx": 11.4,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.601,
+          "advTall": 0.5863,
+          "advX": 0.6156,
+          "gap": 0.0586,
+          "xRatio": 0.7207,
+          "stemW": 0.1757,
+          "contrast": 1.0059,
+          "serif": 0.3178,
+          "densTall": 0.5226,
+          "densX": 0.591,
+          "weight": 0.5226
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "caption-board",
+      "kind": "text",
+      "note": "Caption: Seeed XIAO SAMD21.",
+      "grid": null,
+      "box": {
+        "x": 0.3359,
+        "y": 0.8444,
+        "w": 0.1328,
+        "h": 0.0389
+      },
+      "px": {
+        "x": 430,
+        "y": 608,
+        "w": 170,
+        "h": 28
+      },
+      "aspect": 6.0714,
+      "palette": [
+        {
+          "hex": "#e8e9e9",
+          "coverage": 0.8737
+        },
+        {
+          "hex": "#b6b6b6",
+          "coverage": 0.0404
+        },
+        {
+          "hex": "#101010",
+          "coverage": 0.0316
+        },
+        {
+          "hex": "#6e6e6e",
+          "coverage": 0.0298
+        },
+        {
+          "hex": "#373737",
+          "coverage": 0.0246
+        }
+      ],
+      "detail": {
+        "energy": 40.6696
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "surface": {
+        "flat": true,
+        "rules": false
+      },
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 14,
+          "capHeightPx": 11.1,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.7179,
+          "advTall": 0.7179,
+          "advX": 1.0021,
+          "gap": 0.0897,
+          "xRatio": 0.7392,
+          "stemW": 0.1862,
+          "contrast": 1.0001,
+          "serif": 0.3182,
+          "densTall": 0.5243,
+          "densX": 0.6124,
+          "weight": 0.5243
+        },
+        "widthClass": "wide",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "caption-share",
+      "kind": "text",
+      "note": "Caption: From another computer, copy the URL and the token.",
+      "grid": null,
+      "box": {
+        "x": 0.6563,
+        "y": 0.8417,
+        "w": 0.2813,
+        "h": 0.0417
+      },
+      "px": {
+        "x": 840,
+        "y": 606,
+        "w": 360,
+        "h": 30
+      },
+      "aspect": 12,
+      "palette": [
+        {
+          "hex": "#e8e8e8",
+          "coverage": 0.8274
+        },
+        {
+          "hex": "#161716",
+          "coverage": 0.0776
+        },
+        {
+          "hex": "#494a49",
+          "coverage": 0.0492
+        },
+        {
+          "hex": "#757676",
+          "coverage": 0.0284
+        },
+        {
+          "hex": "#acacac",
+          "coverage": 0.0175
+        }
+      ],
+      "detail": {
+        "energy": 51.555
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "surface": {
+        "flat": false,
+        "rules": false
+      },
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 37,
+          "capHeightPx": 11.3,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6172,
+          "advTall": 0.5878,
+          "advX": 0.6172,
+          "gap": 0.0588,
+          "xRatio": 0.726,
+          "stemW": 0.1761,
+          "contrast": 0.9837,
+          "serif": 0.3597,
+          "densTall": 0.5053,
+          "densX": 0.5963,
+          "weight": 0.5053
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "how-it-works",
+      "kind": "text",
+      "note": "The heading How it works, only the start of the next section.",
+      "grid": null,
+      "box": {
+        "x": 0.0313,
+        "y": 0.9389,
+        "w": 0.125,
+        "h": 0.05
+      },
+      "px": {
+        "x": 40,
+        "y": 676,
+        "w": 160,
+        "h": 36
+      },
+      "aspect": 4.4444,
+      "palette": [
+        {
+          "hex": "#e8e8e8",
+          "coverage": 0.8194
+        },
+        {
+          "hex": "#1e1e1e",
+          "coverage": 0.091
+        },
+        {
+          "hex": "#515151",
+          "coverage": 0.037
+        },
+        {
+          "hex": "#8a8a8a",
+          "coverage": 0.0324
+        },
+        {
+          "hex": "#b1b1b1",
+          "coverage": 0.0201
+        }
+      ],
+      "detail": {
+        "energy": 34.1708
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "surface": {
+        "flat": false,
+        "rules": false
+      },
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 10,
+          "capHeightPx": 17.9,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6408,
+          "advTall": 0.5154,
+          "advX": 0.6687,
+          "gap": 0.0836,
+          "xRatio": 0.714,
+          "stemW": 0.1731,
+          "contrast": 1.0551,
+          "serif": null,
+          "densTall": 0.5209,
+          "densX": 0.5637,
+          "weight": 0.5209
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    }
+  ],
+  "compSha256": "2a2ba6ec5c8ea7938a6344b62531bc65b2b60acc20e61d66b1ff31753ee2e85b",
+  "regionsSource": {
+    "path": ".impeccable/build/regions.json",
+    "sha256": "2bf4c53b8fa3b8d2947d74ef646f296696f600d3d9ad3ab68652cc9c5e297c6f"
+  }
+}

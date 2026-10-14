@@ -1,0 +1,70 @@
+{
+  "regions": [
+    {
+      "id": "nav",
+      "kind": "chrome",
+      "pixelBox": { "x": 370, "y": 16, "w": 540, "h": 48 },
+      "note": "Pill navigation with the LiveUse mark, Download, Setup, Questions, Help, and the theme icon."
+    },
+    {
+      "id": "headline",
+      "kind": "text",
+      "pixelBox": { "x": 48, "y": 90, "w": 600, "h": 54 },
+      "note": "Left-aligned line Download LiveUse for Mac, amber only on the word LiveUse."
+    },
+    {
+      "id": "download",
+      "kind": "control",
+      "pixelBox": { "x": 40, "y": 148, "w": 210, "h": 64 },
+      "note": "Blue button labeled Download for Mac."
+    },
+    {
+      "id": "checksum-line",
+      "kind": "text",
+      "pixelBox": { "x": 40, "y": 208, "w": 580, "h": 44 },
+      "note": "Free on macOS, with a public checksum. Linux and Windows are in progress."
+    },
+    {
+      "id": "device-shot",
+      "kind": "image",
+      "pixelBox": { "x": 8, "y": 240, "w": 412, "h": 368 },
+      "note": "Photograph of the LiveUse Device tab with the board connected."
+    },
+    {
+      "id": "board",
+      "kind": "image",
+      "pixelBox": { "x": 380, "y": 240, "w": 520, "h": 388 },
+      "note": "Photograph of the Seeed XIAO SAMD21 board."
+    },
+    {
+      "id": "share-shot",
+      "kind": "image",
+      "pixelBox": { "x": 800, "y": 240, "w": 468, "h": 368 },
+      "note": "Photograph of the LiveUse Share tab with the URL, token, and MCP configuration."
+    },
+    {
+      "id": "caption-device",
+      "kind": "text",
+      "pixelBox": { "x": 24, "y": 608, "w": 260, "h": 28 },
+      "note": "Caption: On this Mac, the board is connected."
+    },
+    {
+      "id": "caption-board",
+      "kind": "text",
+      "pixelBox": { "x": 430, "y": 608, "w": 170, "h": 28 },
+      "note": "Caption: Seeed XIAO SAMD21."
+    },
+    {
+      "id": "caption-share",
+      "kind": "text",
+      "pixelBox": { "x": 840, "y": 606, "w": 360, "h": 30 },
+      "note": "Caption: From another computer, copy the URL and the token."
+    },
+    {
+      "id": "how-it-works",
+      "kind": "text",
+      "pixelBox": { "x": 40, "y": 676, "w": 160, "h": 36 },
+      "note": "The heading How it works, only the start of the next section."
+    }
+  ]
+}

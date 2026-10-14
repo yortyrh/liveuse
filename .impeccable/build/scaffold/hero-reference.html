@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Scaffold reference: proof-strip.webp</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Asta+Sans:wght@700&display=swap">
+  <link rel="stylesheet" href="layout.css">
+  <style>html,body{margin:0}body{background:#f0f0f0}.region{box-sizing:border-box}.region.text p{white-space:pre-wrap}</style>
+</head>
+<body>
+<!-- Reference only. Every region sits at its measured box inside a comp-aspect frame. Take the boxes (layout.css), keep your own semantic structure. -->
+<main class="comp-frame" style="max-width:1280px">
+  <div class="r-nav region chrome" data-region="nav"><!-- Pill navigation with the LiveUse mark, Download, Setup, Questions, Help, and the theme icon. --></div>
+  <div class="r-headline region text" data-region="headline"><!-- Left-aligned line Download LiveUse for Mac, amber only on the word LiveUse. --><p style="font-size:var(--r-headline-font);font-family:var(--r-headline-family),sans-serif;font-weight:var(--r-headline-weight);line-height:1.05;margin:0">headline</p></div>
+  <div class="r-download region control" data-region="download"><!-- Blue button labeled Download for Mac.: match the control's lettering and visible shape to the crop (comp-spec.mjs --crop download); a control need not have button chrome --></div>
+  <div class="r-checksum-line region text" data-region="checksum-line"><!-- Free on macOS, with a public checksum. Linux and Windows are in progress. --><p style="font-size:var(--r-checksum-line-font);line-height:1.05;margin:0">checksum-line</p></div>
+  <figure class="r-device-shot region plate" data-region="device-shot"><img src="../../../assets/plates/device-shot.png" alt="" style="width:100%;height:100%;object-fit:contain;object-position:center"></figure>
+  <figure class="r-board region plate" data-region="board"><img src="../../../assets/plates/board.png" alt="" style="width:100%;height:100%;object-fit:contain;object-position:center"></figure>
+  <figure class="r-share-shot region plate" data-region="share-shot"><img src="../../../assets/plates/share-shot.png" alt="" style="width:100%;height:100%;object-fit:contain;object-position:center"></figure>
+  <div class="r-caption-device region text" data-region="caption-device"><!-- Caption: On this Mac, the board is connected. --><p style="font-size:var(--r-caption-device-font);line-height:1.05;margin:0">caption-device</p></div>
+  <div class="r-caption-board region text" data-region="caption-board"><!-- Caption: Seeed XIAO SAMD21. --><p style="font-size:var(--r-caption-board-font);line-height:1.05;margin:0">caption-board</p></div>
+  <div class="r-caption-share region text" data-region="caption-share"><!-- Caption: From another computer, copy the URL and the token. --><p style="font-size:var(--r-caption-share-font);line-height:1.05;margin:0">caption-share</p></div>
+  <div class="r-how-it-works region text" data-region="how-it-works"><!-- The heading How it works, only the start of the next section. --><p style="font-size:var(--r-how-it-works-font);line-height:1.05;margin:0">how-it-works</p></div>
+</main>
+</body>
+</html>
