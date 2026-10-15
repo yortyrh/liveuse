@@ -612,7 +612,10 @@ mod tests {
         assert_eq!(offer_for_bootloader(&board).state, "bootloader");
         assert_eq!(offer_for_foreign(&board).state, "foreign");
         assert_eq!(offer_for_published(&board).state, "published");
-        assert_eq!(offer_for_published(&board).available.as_deref(), Some("0.5.0"));
+        assert_eq!(
+            offer_for_published(&board).available.as_deref(),
+            Some("0.5.0")
+        );
         assert!(
             offer_for_bootloader(&board)
                 .message
