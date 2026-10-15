@@ -1,6 +1,7 @@
 mod actions;
 mod agent;
 mod bossac;
+mod computer;
 #[cfg(debug_assertions)]
 mod dev_api;
 mod device;

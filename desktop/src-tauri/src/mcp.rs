@@ -44,9 +44,11 @@ pub const MOVE: &str = "Move the cursor dx, dy points from where it is, correcte
 
 pub const CLICK: &str = "Click. With x and y, the cursor first moves there, corrected like move_to. clicks defaults to 1.";
 
-pub const SCREENSHOT: &str = "Capture the primary display on the size grid, origin at the top left. \
-With left, top, width and height, only that region comes back, at the same scale: add left and top \
-to a point in the region image to get its screen coordinates.";
+pub const SCREENSHOT: &str = "Capture the primary display. Coordinates in every tool use this image: \
+origin at the top left, Y down. The image stays at logical resolution unless the display exceeds \
+2576 px on the long edge or 4784 visual tokens, in which case it is scaled down and clicks are \
+scaled back up. With left, top, width and height, those edges are on this grid and the image is \
+the 1:1 logical crop, so another tool can inspect it.";
 
 pub const PIXEL: &str = "RGB color of one screen pixel. Each call captures the whole screen; to \
 inspect an area, take a screenshot of a region instead.";
@@ -58,6 +60,16 @@ pub fn input_schema(properties: &[(&str, &str, &str)], required: &[&str]) -> Val
         match (*name, *kind) {
             ("rgb", "array") => {
                 prop["items"] = json!({ "type": "integer", "minimum": 0, "maximum": 255 });
+            }
+            ("coordinate" | "start_coordinate", "array") => {
+                prop["items"] = json!({ "type": "integer" });
+                prop["minItems"] = json!(2);
+                prop["maxItems"] = json!(2);
+            }
+            ("region", "array") => {
+                prop["items"] = json!({ "type": "integer" });
+                prop["minItems"] = json!(4);
+                prop["maxItems"] = json!(4);
             }
             (_, "array") => prop["items"] = json!({ "type": "string" }),
             ("region", "object") => {
@@ -129,37 +141,94 @@ async fn tools_call(state: &AppState, body: &Value) -> Result<Value, (i32, Strin
         .cloned()
         .unwrap_or_else(|| json!({}));
     match execute(state, name, &args).await {
-        Ok(value) if name == "screenshot" => Ok(screenshot_content(value)),
-        Ok(value) => Ok(text_content(&value.to_string(), false)),
+        Ok(value) if name == "screenshot" || name == "zoom" => Ok(image_content(name, value)),
+        Ok(value) if name == "cursor_position" => Ok(text_content(&cursor_text(&value), false)),
+        Ok(value) => Ok(text_content(
+            &phrase(name, &args).unwrap_or_else(|| value.to_string()),
+            false,
+        )),
         Err(ActionError::NotFound) => Ok(text_content("ImageNotFoundException", true)),
         Err(err) => Ok(text_content(&err.message(), true)),
     }
 }
 
-fn screenshot_content(value: Value) -> Value {
+fn cursor_text(value: &Value) -> String {
+    let x = value.get("x").and_then(Value::as_i64).unwrap_or(0);
+    let y = value.get("y").and_then(Value::as_i64).unwrap_or(0);
+    format!("X={x},Y={y}")
+}
+
+fn phrase(name: &str, args: &Value) -> Option<String> {
+    match name {
+        "left_click" | "right_click" | "middle_click" | "double_click" | "triple_click" => {
+            Some("Clicked.".into())
+        }
+        "left_click_drag" => Some("Dragged.".into()),
+        "mouse_move" => Some("Moved.".into()),
+        "left_mouse_down" => Some("Pressed.".into()),
+        "left_mouse_up" => Some("Released.".into()),
+        "type" => Some("Typed.".into()),
+        "key" | "hold_key" => Some("Pressed.".into()),
+        "wait" => Some("Waited.".into()),
+        "scroll" if args.get("scroll_direction").is_some() => Some("Scrolled.".into()),
+        _ => None,
+    }
+}
+
+fn image_content(name: &str, value: Value) -> Value {
     let width = value.get("width").and_then(Value::as_u64).unwrap_or(0);
     let height = value.get("height").and_then(Value::as_u64).unwrap_or(0);
-    let left = value.get("left").and_then(Value::as_u64).unwrap_or(0);
-    let top = value.get("top").and_then(Value::as_u64).unwrap_or(0);
-    let jpeg = value
-        .get("jpeg_base64")
+    let png = value
+        .get("png_base64")
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_string();
-    let caption = if left == 0 && top == 0 {
+    let caption = if name == "zoom" {
+        let x0 = value.get("x0").and_then(Value::as_i64).unwrap_or(0);
+        let y0 = value.get("y0").and_then(Value::as_i64).unwrap_or(0);
+        let x1 = value.get("x1").and_then(Value::as_i64).unwrap_or(0);
+        let y1 = value.get("y1").and_then(Value::as_i64).unwrap_or(0);
+        let shot_w = value.get("shot_width").and_then(Value::as_u64).unwrap_or(0);
+        let shot_h = value
+            .get("shot_height")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
         format!(
-            "screenshot {width}x{height}. Click coordinates use this same grid, origin at the top left."
+            "zoom {width}x{height} of the region ({x0}, {y0})-({x1}, {y1}). \
+             Click coordinates stay on the full {shot_w}x{shot_h} screenshot, origin at the top left."
         )
+    } else if value.get("cropped").and_then(Value::as_bool) == Some(true) {
+        let left = value.get("left").and_then(Value::as_u64).unwrap_or(0);
+        let top = value.get("top").and_then(Value::as_u64).unwrap_or(0);
+        let grid_w = value
+            .get("grid_width")
+            .and_then(Value::as_u64)
+            .unwrap_or(width);
+        let grid_h = value
+            .get("grid_height")
+            .and_then(Value::as_u64)
+            .unwrap_or(height);
+        if grid_w == width && grid_h == height {
+            format!(
+                "screenshot of the {width}x{height} region at left {left}, top {top}. \
+                 A point (x, y) in this image is (x + {left}, y + {top}) on the screenshot grid."
+            )
+        } else {
+            format!(
+                "logical {width}x{height} crop of the {grid_w}x{grid_h} region at left {left}, top {top}. \
+                 A point (x, y) in this image is ({left} + x * {grid_w} / {width}, {top} + y * {grid_h} / {height}) \
+                 on the screenshot grid."
+            )
+        }
     } else {
         format!(
-            "screenshot of the {width}x{height} region at left {left}, top {top}. \
-             A point (x, y) in this image is (x + {left}, y + {top}) on screen."
+            "screenshot {width}x{height}. Click coordinates use this same grid, origin at the top left."
         )
     };
     json!({
         "content": [
             { "type": "text", "text": caption },
-            { "type": "image", "data": jpeg, "mimeType": "image/jpeg" }
+            { "type": "image", "data": png, "mimeType": "image/png" }
         ],
         "isError": false
     })
@@ -296,6 +365,16 @@ fn tool_defs() -> Vec<Value> {
             &[
                 ("x", "integer", "x"),
                 ("y", "integer", "y"),
+                (
+                    "coordinate",
+                    "array",
+                    "[x, y] on the screenshot; used instead of x and y",
+                ),
+                (
+                    "text",
+                    "string",
+                    "modifiers to hold, such as shift or ctrl+shift",
+                ),
                 ("interval", "number", "seconds"),
                 ("button", "string", "button"),
                 ("operation", "string", OPERATION),
@@ -311,6 +390,16 @@ fn tool_defs() -> Vec<Value> {
             &[
                 ("x", "integer", "x"),
                 ("y", "integer", "y"),
+                (
+                    "coordinate",
+                    "array",
+                    "[x, y] on the screenshot; used instead of x and y",
+                ),
+                (
+                    "text",
+                    "string",
+                    "modifiers to hold, such as shift or ctrl+shift",
+                ),
                 ("interval", "number", "seconds"),
                 ("button", "string", "button"),
                 ("operation", "string", OPERATION),
@@ -326,10 +415,84 @@ fn tool_defs() -> Vec<Value> {
             &[
                 ("x", "integer", "x"),
                 ("y", "integer", "y"),
+                (
+                    "coordinate",
+                    "array",
+                    "[x, y] on the screenshot; used instead of x and y",
+                ),
+                (
+                    "text",
+                    "string",
+                    "modifiers to hold, such as shift or ctrl+shift",
+                ),
                 ("operation", "string", OPERATION),
             ],
             &[],
         ),
+    );
+    push(
+        &mut tools,
+        "left_click",
+        "Left-click. coordinate is optional; without it the click lands at the cursor. text holds modifiers such as shift, ctrl, alt, super, or ctrl+shift.",
+        object(
+            &[
+                ("coordinate", "array", "[x, y] on the screenshot"),
+                ("text", "string", "modifiers to hold during the click"),
+                ("operation", "string", OPERATION),
+            ],
+            &[],
+        ),
+    );
+    push(
+        &mut tools,
+        "middle_click",
+        "Middle-click. Same coordinate and text as left_click.",
+        object(
+            &[
+                ("coordinate", "array", "[x, y] on the screenshot"),
+                ("text", "string", "modifiers to hold during the click"),
+                ("operation", "string", OPERATION),
+            ],
+            &[],
+        ),
+    );
+    push(
+        &mut tools,
+        "left_click_drag",
+        "Press at start_coordinate, drag to coordinate, and release. text holds modifiers for the drag.",
+        object(
+            &[
+                ("start_coordinate", "array", "[x, y] where the drag starts"),
+                ("coordinate", "array", "[x, y] where the drag ends"),
+                ("text", "string", "modifiers to hold"),
+                ("operation", "string", OPERATION),
+            ],
+            &["start_coordinate", "coordinate"],
+        ),
+    );
+    push(
+        &mut tools,
+        "mouse_move",
+        "Move the cursor to coordinate without clicking.",
+        object(
+            &[
+                ("coordinate", "array", "[x, y] on the screenshot"),
+                ("operation", "string", OPERATION),
+            ],
+            &["coordinate"],
+        ),
+    );
+    push(
+        &mut tools,
+        "left_mouse_down",
+        "Press the left mouse button at the current cursor.",
+        object(&[("operation", "string", OPERATION)], &[]),
+    );
+    push(
+        &mut tools,
+        "left_mouse_up",
+        "Release the left mouse button at the current cursor.",
+        object(&[("operation", "string", OPERATION)], &[]),
     );
     push(
         &mut tools,
@@ -362,15 +525,19 @@ fn tool_defs() -> Vec<Value> {
     push(
         &mut tools,
         "scroll",
-        "Vertical wheel. Positive scrolls up, negative scrolls down. clicks is the number of notches.",
+        "Scroll the wheel. Either clicks (positive up, negative down) or scroll_direction up, down, left, or right with scroll_amount. coordinate or x, y move there first. text holds modifiers. left and right scroll horizontally.",
         object(
             &[
-                ("clicks", "integer", "notches"),
+                ("clicks", "integer", "notches; positive up"),
+                ("scroll_direction", "string", "up, down, left, or right"),
+                ("scroll_amount", "integer", "notches, 0 to 100"),
+                ("coordinate", "array", "[x, y] on the screenshot"),
                 ("x", "integer", "move first"),
                 ("y", "integer", "move first"),
+                ("text", "string", "modifiers to hold"),
                 ("operation", "string", OPERATION),
             ],
-            &["clicks"],
+            &[],
         ),
     );
     push(
@@ -439,6 +606,61 @@ fn tool_defs() -> Vec<Value> {
     );
     push(
         &mut tools,
+        "type",
+        "Type literal text at the current keyboard focus. Same limits as write.",
+        object(
+            &[
+                (
+                    "text",
+                    "string",
+                    "printable ASCII; \\n is Enter, \\t is Tab",
+                ),
+                ("interval", "number", "seconds between characters"),
+                ("operation", "string", OPERATION),
+            ],
+            &["text"],
+        ),
+    );
+    push(
+        &mut tools,
+        "key",
+        "Press a key or a plus-joined combination such as Return, ctrl+s, or alt+Tab. repeat is 1 to 100. super is Command.",
+        object(
+            &[
+                ("text", "string", "key or combination"),
+                ("repeat", "integer", "1 to 100, default 1"),
+                ("operation", "string", OPERATION),
+            ],
+            &["text"],
+        ),
+    );
+    push(
+        &mut tools,
+        "hold_key",
+        "Hold a key or combination for duration seconds, at most 300.",
+        object(
+            &[
+                ("text", "string", "key or combination"),
+                ("duration", "number", "seconds, 0 to 300"),
+                ("operation", "string", OPERATION),
+            ],
+            &["text", "duration"],
+        ),
+    );
+    push(
+        &mut tools,
+        "wait",
+        "Pause for duration seconds, at most 300.",
+        object(
+            &[
+                ("duration", "number", "seconds, 0 to 300"),
+                ("operation", "string", OPERATION),
+            ],
+            &["duration"],
+        ),
+    );
+    push(
+        &mut tools,
         "hotkey",
         HOTKEY,
         object(
@@ -467,6 +689,24 @@ fn tool_defs() -> Vec<Value> {
     );
     push(
         &mut tools,
+        "zoom",
+        "Magnify a region of the full screenshot. region is [x0, y0, x1, y1] on that screenshot. The image is the physical pixels of that area, scaled to fit the screenshot size. Later clicks stay on the full screenshot grid.",
+        object(
+            &[
+                ("region", "array", "[x0, y0, x1, y1] on the full screenshot"),
+                ("operation", "string", OPERATION),
+            ],
+            &["region"],
+        ),
+    );
+    push(
+        &mut tools,
+        "cursor_position",
+        "Cursor position on the screenshot grid, as X and Y.",
+        object(&[], &[]),
+    );
+    push(
+        &mut tools,
         "locate_on_screen",
         "Find a base64 PNG on the screen. Without confidence, an exact match. With confidence, normalized correlation from 0 to 1. If there is no match, the error is ImageNotFoundException.",
         object(
@@ -474,7 +714,7 @@ fn tool_defs() -> Vec<Value> {
                 (
                     "image_base64",
                     "string",
-                    "PNG at the same resolution as screenshot",
+                    "PNG at logical resolution, such as a screenshot region crop",
                 ),
                 ("grayscale", "boolean", "compare luma"),
                 ("confidence", "number", "0 to 1"),

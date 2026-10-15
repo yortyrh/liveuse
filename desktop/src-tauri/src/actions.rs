@@ -9,6 +9,7 @@ use serde_json::{Value, json};
 use tauri::menu::MenuItem;
 use tauri::{AppHandle, Emitter, Manager};
 
+use crate::computer::{self, Call};
 use crate::device::Device;
 use crate::protocol::{
     Step, button_down, button_up, click_steps, counts_for, measured_gain, plan_hotkey,
@@ -245,7 +246,13 @@ pub async fn execute(state: &AppState, name: &str, args: &Value) -> Result<Value
     }
     let quiet = matches!(
         name,
-        "status" | "size" | "position" | "on_screen" | "pixel" | "pixel_matches_color"
+        "status"
+            | "size"
+            | "position"
+            | "cursor_position"
+            | "on_screen"
+            | "pixel"
+            | "pixel_matches_color"
     );
     if !quiet {
         state.set_operation(Some(operation_label(name, args)));
@@ -270,22 +277,82 @@ pub async fn execute(state: &AppState, name: &str, args: &Value) -> Result<Value
 }
 
 async fn dispatch(state: &AppState, name: &str, args: &Value) -> Result<Value, ActionError> {
+    match computer::prepare(name, args)? {
+        Call::Forward {
+            name,
+            args,
+            modifiers,
+        } => with_modifiers(state, &modifiers, || dispatch_named(state, &name, &args)).await,
+        Call::Key { keys, repeat } => {
+            if keys.len() == 1 {
+                run_steps(state, plan_press(&keys[0], repeat, 0.0)?).await?;
+            } else {
+                for _ in 0..repeat {
+                    run_steps(state, plan_hotkey(&keys, 0.0)?).await?;
+                }
+            }
+            Ok(json!({ "ok": true }))
+        }
+        Call::Hold { keys, seconds } => {
+            with_modifiers(state, &keys, || async {
+                sleep_abortable(state, Duration::from_secs_f64(seconds)).await?;
+                Ok(json!({ "ok": true }))
+            })
+            .await
+        }
+        Call::Wait { seconds } => {
+            sleep_abortable(state, Duration::from_secs_f64(seconds)).await?;
+            Ok(json!({ "ok": true }))
+        }
+        Call::Zoom { x0, y0, x1, y1 } => zoom_action(state, x0, y0, x1, y1),
+        Call::Drag {
+            start,
+            end,
+            modifiers,
+        } => {
+            with_modifiers(state, &modifiers, || async {
+                let grid = shot_grid()?;
+                let start = grid.point_to_logical(start.0, start.1)?;
+                let end = grid.point_to_logical(end.0, end.1)?;
+                move_to(state, Some(start.0), Some(start.1), 0.0, "linear".into()).await?;
+                run_steps(state, vec![button_down("left")?]).await?;
+                let moved = move_to(state, Some(end.0), Some(end.1), 0.0, "linear".into()).await;
+                let released = run_steps(state, vec![button_up("left")?]).await;
+                moved?;
+                released?;
+                Ok(json!({ "ok": true }))
+            })
+            .await
+        }
+    }
+}
+
+async fn dispatch_named(state: &AppState, name: &str, args: &Value) -> Result<Value, ActionError> {
+    let mapped;
+    let args = if maps_motion(name) {
+        mapped = map_motion(args, &shot_grid()?)?;
+        &mapped
+    } else {
+        args
+    };
     match name {
         "status" => Ok(json!(device_view(state))),
         "size" => {
-            let geometry = geometry()?;
-            Ok(json!({ "width": geometry.width, "height": geometry.height }))
+            let grid = shot_grid()?;
+            Ok(json!({ "width": grid.shot_width, "height": grid.shot_height }))
         }
         "position" => {
+            let grid = shot_grid()?;
             let (x, y) = screen::cursor_position().map_err(ActionError::Bad)?;
+            let (x, y) = grid.point_from_logical(x, y);
             Ok(json!({ "x": x, "y": y }))
         }
         "on_screen" => {
-            let geometry = geometry()?;
+            let grid = shot_grid()?;
             let x = required_i32(args, "x")?;
             let y = required_i32(args, "y")?;
             Ok(json!({
-                "on_screen": crate::protocol::on_screen(x, y, geometry.width, geometry.height)
+                "on_screen": crate::protocol::on_screen(x, y, grid.shot_width, grid.shot_height)
             }))
         }
         "move_to" => {
@@ -357,35 +424,39 @@ async fn dispatch(state: &AppState, name: &str, args: &Value) -> Result<Value, A
             run_steps(state, plan_hotkey(&keys, number(args, "interval", 0.0)?)?).await?;
             Ok(json!({ "ok": true }))
         }
-        "screenshot" => {
-            let image = grab(state).await?;
-            let bounds = region(args)?;
-            let image = crop_region(&image, bounds)?;
-            let mut value = encoded_json(&image)?;
-            value["left"] = json!(bounds.map_or(0, |b| b.left));
-            value["top"] = json!(bounds.map_or(0, |b| b.top));
-            Ok(value)
-        }
+        "screenshot" => screenshot_action(state, args),
         "locate_on_screen" => {
-            let found = find_boxes(state, args).await?;
+            let grid = shot_grid()?;
+            let args = map_locate_region(args, &grid)?;
+            let found = find_boxes(state, &args).await?;
             let Some(bounds) = found.into_iter().next() else {
                 return Err(ActionError::NotFound);
             };
-            Ok(json_bounds(bounds))
+            Ok(json_bounds(bounds_to_shot(&grid, bounds)))
         }
         "locate_center_on_screen" => {
-            let found = find_boxes(state, args).await?;
+            let grid = shot_grid()?;
+            let args = map_locate_region(args, &grid)?;
+            let found = find_boxes(state, &args).await?;
             let Some(bounds) = found.into_iter().next() else {
                 return Err(ActionError::NotFound);
             };
+            let bounds = bounds_to_shot(&grid, bounds);
             Ok(json!({
                 "x": bounds.left as i32 + bounds.width as i32 / 2,
                 "y": bounds.top as i32 + bounds.height as i32 / 2
             }))
         }
         "locate_all_on_screen" => {
-            let found = find_boxes(state, args).await?;
-            Ok(json!({ "boxes": found.into_iter().map(json_bounds).collect::<Vec<_>>() }))
+            let grid = shot_grid()?;
+            let args = map_locate_region(args, &grid)?;
+            let found = find_boxes(state, &args).await?;
+            Ok(json!({
+                "boxes": found
+                    .into_iter()
+                    .map(|bounds| json_bounds(bounds_to_shot(&grid, bounds)))
+                    .collect::<Vec<_>>()
+            }))
         }
         "pixel" => {
             let image = grab(state).await?;
@@ -427,6 +498,236 @@ fn device_view(state: &AppState) -> DeviceView {
 
 fn geometry() -> Result<Geometry, ActionError> {
     screen::primary_geometry().map_err(ActionError::Bad)
+}
+
+fn shot_grid() -> Result<screen::Grid, ActionError> {
+    let geometry = geometry()?;
+    Ok(screen::Grid::from_logical(geometry.width, geometry.height))
+}
+
+fn maps_motion(name: &str) -> bool {
+    matches!(
+        name,
+        "move_to"
+            | "move"
+            | "drag_to"
+            | "drag"
+            | "click"
+            | "double_click"
+            | "triple_click"
+            | "right_click"
+            | "mouse_down"
+            | "mouse_up"
+            | "scroll"
+            | "hscroll"
+            | "pixel"
+            | "pixel_matches_color"
+    )
+}
+
+fn map_motion(args: &Value, grid: &screen::Grid) -> Result<Value, ActionError> {
+    let mut args = args.clone();
+    match (opt_i32(&args, "x"), opt_i32(&args, "y")) {
+        (Some(x), Some(y)) => {
+            let (x, y) = grid.point_to_logical(x, y)?;
+            args["x"] = json!(x);
+            args["y"] = json!(y);
+        }
+        (Some(x), None) => {
+            if x < 0 || x as u32 >= grid.shot_width {
+                return Err(ActionError::Bad(format!(
+                    "[{x}, …] is outside the {}x{} screenshot",
+                    grid.shot_width, grid.shot_height
+                )));
+            }
+            args["x"] = json!(screen::map_axis(x, grid.shot_width, grid.logical_width));
+        }
+        (None, Some(y)) => {
+            if y < 0 || y as u32 >= grid.shot_height {
+                return Err(ActionError::Bad(format!(
+                    "[…, {y}] is outside the {}x{} screenshot",
+                    grid.shot_width, grid.shot_height
+                )));
+            }
+            args["y"] = json!(screen::map_axis(y, grid.shot_height, grid.logical_height));
+        }
+        (None, None) => {}
+    }
+    if opt_i32(&args, "dx").is_some() || opt_i32(&args, "dy").is_some() {
+        let (dx, dy) = grid.delta_to_logical(
+            opt_i32(&args, "dx").unwrap_or(0),
+            opt_i32(&args, "dy").unwrap_or(0),
+        );
+        if args.get("dx").is_some() {
+            args["dx"] = json!(dx);
+        }
+        if args.get("dy").is_some() {
+            args["dy"] = json!(dy);
+        }
+    }
+    Ok(args)
+}
+
+fn map_locate_region(args: &Value, grid: &screen::Grid) -> Result<Value, ActionError> {
+    let mut args = args.clone();
+    let Some(bounds) = region(&args)? else {
+        return Ok(args);
+    };
+    if bounds.width == 0
+        || bounds.height == 0
+        || bounds.left.saturating_add(bounds.width) > grid.shot_width
+        || bounds.top.saturating_add(bounds.height) > grid.shot_height
+    {
+        return Err(ActionError::Bad("region is outside the screenshot".into()));
+    }
+    let (left, width) = screen::map_span(
+        bounds.left,
+        bounds.width,
+        grid.shot_width,
+        grid.logical_width,
+    );
+    let (top, height) = screen::map_span(
+        bounds.top,
+        bounds.height,
+        grid.shot_height,
+        grid.logical_height,
+    );
+    if let Some(object) = args.as_object_mut() {
+        object.remove("left");
+        object.remove("top");
+        object.remove("width");
+        object.remove("height");
+    }
+    args["region"] = json!({ "left": left, "top": top, "width": width, "height": height });
+    Ok(args)
+}
+
+fn bounds_to_shot(grid: &screen::Grid, bounds: Bounds) -> Bounds {
+    let (left, width) = screen::map_span(
+        bounds.left,
+        bounds.width,
+        grid.logical_width,
+        grid.shot_width,
+    );
+    let (top, height) = screen::map_span(
+        bounds.top,
+        bounds.height,
+        grid.logical_height,
+        grid.shot_height,
+    );
+    Bounds {
+        left,
+        top,
+        width,
+        height,
+    }
+}
+
+async fn with_modifiers<F, Fut>(
+    state: &AppState,
+    modifiers: &[String],
+    action: F,
+) -> Result<Value, ActionError>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Result<Value, ActionError>>,
+{
+    let mut held = Vec::new();
+    for key in modifiers {
+        if let Err(err) = run_steps(state, vec![plan_key_down(key)?]).await {
+            release_named(state, &held).await;
+            return Err(err);
+        }
+        held.push(key.clone());
+    }
+    let result = action().await;
+    release_named(state, &held).await;
+    result
+}
+
+async fn release_named(state: &AppState, keys: &[String]) {
+    for key in keys.iter().rev() {
+        if let Ok(step) = plan_key_up(key) {
+            let _ = run_steps(state, vec![step]).await;
+        }
+    }
+}
+
+fn protect_overlay(state: &AppState) {
+    if let Some(overlay) = state.app.get_webview_window("overlay") {
+        let _ = overlay.set_content_protected(true);
+    }
+}
+
+fn capture(state: &AppState) -> Result<screen::Frame, ActionError> {
+    protect_overlay(state);
+    screen::capture_frame().map_err(ActionError::Bad)
+}
+
+fn screenshot_action(state: &AppState, args: &Value) -> Result<Value, ActionError> {
+    let frame = capture(state)?;
+    let grid = frame.grid();
+    let Some(bounds) = shot_region(args, &grid)? else {
+        let image = frame.shot_image();
+        let mut value = encoded_json(&image)?;
+        value["left"] = json!(0);
+        value["top"] = json!(0);
+        value["cropped"] = json!(false);
+        return Ok(value);
+    };
+    let logical = frame.logical_image();
+    let (left, width) =
+        screen::map_span(bounds.left, bounds.width, grid.shot_width, logical.width());
+    let (top, height) = screen::map_span(
+        bounds.top,
+        bounds.height,
+        grid.shot_height,
+        logical.height(),
+    );
+    let image = crop_region(
+        &logical,
+        Some(Bounds {
+            left,
+            top,
+            width,
+            height,
+        }),
+    )?;
+    let mut value = encoded_json(&image)?;
+    value["left"] = json!(bounds.left);
+    value["top"] = json!(bounds.top);
+    value["grid_width"] = json!(bounds.width);
+    value["grid_height"] = json!(bounds.height);
+    value["cropped"] = json!(true);
+    Ok(value)
+}
+
+fn shot_region(args: &Value, grid: &screen::Grid) -> Result<Option<Bounds>, ActionError> {
+    let Some(bounds) = region(args)? else {
+        return Ok(None);
+    };
+    if bounds.width == 0
+        || bounds.height == 0
+        || bounds.left.saturating_add(bounds.width) > grid.shot_width
+        || bounds.top.saturating_add(bounds.height) > grid.shot_height
+    {
+        return Err(ActionError::Bad("region is outside the screenshot".into()));
+    }
+    Ok(Some(bounds))
+}
+
+fn zoom_action(state: &AppState, x0: i32, y0: i32, x1: i32, y1: i32) -> Result<Value, ActionError> {
+    let frame = capture(state)?;
+    let grid = frame.grid();
+    let image = screen::zoom_image(&frame.device, grid, x0, y0, x1, y1)?;
+    let mut value = encoded_json(&image)?;
+    value["x0"] = json!(x0);
+    value["y0"] = json!(y0);
+    value["x1"] = json!(x1);
+    value["y1"] = json!(y1);
+    value["shot_width"] = json!(grid.shot_width);
+    value["shot_height"] = json!(grid.shot_height);
+    Ok(value)
 }
 
 /// The OS scales HID counts (about 1.45x on a default macOS setup), so a move is
@@ -704,10 +1005,7 @@ async fn sleep_abortable(state: &AppState, total: Duration) -> Result<(), Action
 }
 
 async fn grab(state: &AppState) -> Result<RgbaImage, ActionError> {
-    if let Some(overlay) = state.app.get_webview_window("overlay") {
-        let _ = overlay.set_content_protected(true);
-    }
-    screen::capture_primary().map_err(ActionError::Bad)
+    Ok(capture(state)?.logical_image())
 }
 
 fn crop_region(image: &RgbaImage, bounds: Option<Bounds>) -> Result<RgbaImage, ActionError> {
