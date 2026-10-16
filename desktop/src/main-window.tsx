@@ -55,6 +55,7 @@ export function MainWindow() {
     provider: "openai/openai",
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-4o-mini",
+    reasoning: "",
     hasApiKey: false,
     needsKey: true,
   });
@@ -478,7 +479,7 @@ export function MainWindow() {
                 onApiKey={setApiKey}
                 onCanSave={setCanSaveModel}
                 onSave={(next) =>
-                  void saveLlm(next.provider, next.baseUrl, next.model, next.apiKey)
+                  void saveLlm(next.provider, next.baseUrl, next.model, next.apiKey, next.reasoning)
                     .then(async () => {
                       setApiKey("");
                       setLlm(await llmSettings());

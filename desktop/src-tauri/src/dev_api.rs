@@ -61,6 +61,7 @@ async fn save(State(state): State<Arc<AppState>>, Json(body): Json<SaveBody>) ->
         body.base_url,
         body.model,
         body.api_key,
+        body.reasoning,
     ) {
         Ok(()) => Json(json!({ "ok": true })).into_response(),
         Err(err) => error(err),
@@ -87,6 +88,8 @@ struct SaveBody {
     base_url: String,
     model: String,
     api_key: Option<String>,
+    #[serde(default)]
+    reasoning: Option<String>,
 }
 
 async fn cors(request: Request<Body>, next: Next) -> Response {

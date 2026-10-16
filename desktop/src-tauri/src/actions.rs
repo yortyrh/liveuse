@@ -88,6 +88,7 @@ pub struct AppState {
     pub llm_model: RwLock<String>,
     pub llm_provider: RwLock<String>,
     pub llm_api_key: RwLock<String>,
+    pub llm_reasoning: RwLock<String>,
     pub scroll_inverted: RwLock<Option<bool>>,
     pub config_path: std::path::PathBuf,
     pub status_item: Mutex<Option<MenuItem<tauri::Wry>>>,

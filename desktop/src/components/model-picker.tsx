@@ -19,13 +19,20 @@ export function ModelPicker({
   formId?: string;
   onApiKey: (value: string) => void;
   onCanSave?: (value: boolean) => void;
-  onSave: (draft: { provider: string; baseUrl: string; model: string; apiKey: string }) => void;
+  onSave: (draft: {
+    provider: string;
+    baseUrl: string;
+    model: string;
+    apiKey: string;
+    reasoning: string;
+  }) => void;
 }) {
   const companyListId = useId();
   const modelListId = useId();
   const [provider, setProvider] = useState(saved.provider);
   const [baseUrl, setBaseUrl] = useState(saved.baseUrl);
   const [model, setModel] = useState(saved.model);
+  const [reasoning, setReasoning] = useState(saved.reasoning);
   const [catalog, setCatalog] = useState<LlmModel[]>([]);
   const [catalogNote, setCatalogNote] = useState("Loading models…");
   const [companyOpen, setCompanyOpen] = useState(false);
@@ -40,8 +47,9 @@ export function ModelPicker({
     setProvider(saved.provider);
     setBaseUrl(saved.baseUrl);
     setModel(saved.model);
+    setReasoning(saved.reasoning);
     setCompanyEditing(false);
-  }, [saved.provider, saved.baseUrl, saved.model]);
+  }, [saved.provider, saved.baseUrl, saved.model, saved.reasoning]);
 
   useEffect(() => {
     let alive = true;
@@ -76,6 +84,8 @@ export function ModelPicker({
     () => filterModels(catalog, modelEditing ? model : ""),
     [catalog, model, modelEditing],
   );
+  const reasoningOptions = catalog.find((item) => item.id === model.trim())?.reasoning ?? [];
+  const reasoningValue = reasoningOptions.some((item) => item.value === reasoning) ? reasoning : "";
   const companyIndex = Math.min(companyActive, Math.max(companyOptions.length - 1, 0));
   const modelIndex = Math.min(modelActive, Math.max(modelOptions.length - 1, 0));
 
@@ -97,7 +107,7 @@ export function ModelPicker({
   }
 
   function save(nextModel = model) {
-    onSave({ provider, baseUrl, model: nextModel, apiKey });
+    onSave({ provider, baseUrl, model: nextModel, apiKey, reasoning: reasoningValue });
   }
 
   const canSave = model.trim().length > 0 && (!needsKey || saved.hasApiKey || apiKey.trim().length > 0);
@@ -262,6 +272,26 @@ export function ModelPicker({
           ) : null}
         </div>
       </div>
+      {reasoningOptions.length > 0 ? (
+        <label className="grid gap-1.5">
+          <span className="text-sm font-medium">Reasoning</span>
+          <select
+            aria-label="Reasoning"
+            className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2 py-1 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
+            value={reasoningValue}
+            onChange={(event) => setReasoning(event.target.value)}
+          >
+            {reasoningOptions.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-muted-foreground">
+            More reasoning can help on hard tasks but makes each step slower and costs more tokens.
+          </span>
+        </label>
+      ) : null}
       <label className="grid gap-1.5">
         <span className="text-sm font-medium">API key</span>
         <Input

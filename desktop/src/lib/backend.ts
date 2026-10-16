@@ -51,6 +51,7 @@ export type LlmSettings = {
   provider: string;
   baseUrl: string;
   model: string;
+  reasoning: string;
   hasApiKey: boolean;
   needsKey: boolean;
 };
@@ -67,6 +68,12 @@ export type LlmModel = {
   name: string;
   image: boolean;
   tools: boolean;
+  reasoning: ReasoningChoice[];
+};
+
+export type ReasoningChoice = {
+  value: string;
+  label: string;
 };
 
 export type Target =
@@ -148,13 +155,19 @@ export function scrollProbeNudge() {
   return invoke<void>("scroll_probe_nudge");
 }
 
-export function saveLlm(provider: string, baseUrl: string, model: string, apiKey: string) {
+export function saveLlm(
+  provider: string,
+  baseUrl: string,
+  model: string,
+  apiKey: string,
+  reasoning: string,
+) {
   const key = apiKey.trim() ? apiKey : null;
   if (!inDesktopApp()) {
     return devJson<void>("/llm/settings", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ provider, baseUrl, model, apiKey: key }),
+      body: JSON.stringify({ provider, baseUrl, model, apiKey: key, reasoning }),
     });
   }
   return invoke<void>("save_llm", {
@@ -162,6 +175,7 @@ export function saveLlm(provider: string, baseUrl: string, model: string, apiKey
     baseUrl,
     model,
     apiKey: key,
+    reasoning,
   });
 }
 

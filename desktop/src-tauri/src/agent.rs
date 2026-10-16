@@ -87,13 +87,22 @@ async fn run_agent(
         .read()
         .map_err(|err| err.to_string())?
         .clone();
+    let reasoning = crate::llm::parse_reasoning(
+        &state
+            .llm_reasoning
+            .read()
+            .map_err(|err| err.to_string())?,
+    )?;
     let model = crate::llm::completion_model(&provider, &model_name, &base, &key)?;
     let tools = computer_tools(Arc::clone(state), target);
-    let agent = AgentBuilder::new(model)
+    let mut builder = AgentBuilder::new(model)
         .preamble(PREAMBLE)
         .dynamic_tools(tools)
-        .default_max_turns(24)
-        .build();
+        .default_max_turns(24);
+    if let Some(reasoning) = reasoning {
+        builder = builder.reasoning(reasoning);
+    }
+    let agent = builder.build();
     let history = history_messages(&history);
     let mut stream = agent
         .prompt(prompt)

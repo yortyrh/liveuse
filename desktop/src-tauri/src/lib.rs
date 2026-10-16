@@ -51,6 +51,8 @@ struct FileConfig {
     #[serde(default)]
     llm_api_key: String,
     #[serde(default)]
+    llm_reasoning: String,
+    #[serde(default)]
     scroll_inverted: Option<bool>,
 }
 
@@ -476,6 +478,7 @@ pub(crate) fn settings_json(state: &AppState) -> Value {
         "provider": provider,
         "baseUrl": state.llm_base_url.read().map(|v| v.clone()).unwrap_or_default(),
         "model": state.llm_model.read().map(|v| v.clone()).unwrap_or_default(),
+        "reasoning": state.llm_reasoning.read().map(|v| v.clone()).unwrap_or_default(),
         "hasApiKey": !key.trim().is_empty(),
         "needsKey": llm::needs_key(&provider),
     })
@@ -545,8 +548,9 @@ fn save_llm(
     base_url: String,
     model: String,
     api_key: Option<String>,
+    reasoning: Option<String>,
 ) -> Result<(), String> {
-    write_llm(&state, provider, base_url, model, api_key)
+    write_llm(&state, provider, base_url, model, api_key, reasoning)
 }
 
 pub(crate) fn write_llm(
@@ -555,13 +559,20 @@ pub(crate) fn write_llm(
     base_url: String,
     model: String,
     api_key: Option<String>,
+    reasoning: Option<String>,
 ) -> Result<(), String> {
     let provider = llm::canonical_provider(&provider)?;
     let model = model.trim();
     if model.is_empty() {
         return Err("Choose a model.".into());
     }
+    if let Some(reasoning) = &reasoning {
+        llm::parse_reasoning(reasoning)?;
+    }
     let base = base_url.trim().trim_end_matches('/').to_string();
+    if let Some(reasoning) = reasoning {
+        *state.llm_reasoning.write().map_err(|err| err.to_string())? = reasoning.trim().to_string();
+    }
     *state.llm_provider.write().map_err(|err| err.to_string())? = provider;
     *state.llm_base_url.write().map_err(|err| err.to_string())? = base;
     *state.llm_model.write().map_err(|err| err.to_string())? = model.to_string();
@@ -759,6 +770,7 @@ fn load_state(app: &tauri::AppHandle) -> Result<AppState, Box<dyn std::error::Er
             llm::canonical_provider(&config.llm_provider).unwrap_or(config.llm_provider),
         ),
         llm_api_key: RwLock::new(config.llm_api_key),
+        llm_reasoning: RwLock::new(config.llm_reasoning),
         scroll_inverted: RwLock::new(config.scroll_inverted),
         config_path,
         status_item: std::sync::Mutex::new(None),
@@ -774,6 +786,7 @@ fn default_config() -> FileConfig {
         llm_model: "gpt-4o-mini".into(),
         llm_provider: default_provider(),
         llm_api_key: String::new(),
+        llm_reasoning: String::new(),
         scroll_inverted: None,
     }
 }
@@ -799,6 +812,11 @@ fn save_config(state: &AppState) -> Result<(), String> {
             .clone(),
         llm_api_key: state
             .llm_api_key
+            .read()
+            .map_err(|err| err.to_string())?
+            .clone(),
+        llm_reasoning: state
+            .llm_reasoning
             .read()
             .map_err(|err| err.to_string())?
             .clone(),
