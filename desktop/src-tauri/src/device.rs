@@ -44,15 +44,16 @@ pub fn find_usb(vid: u16, pid: u16) -> Option<FoundPort> {
     let ports = serialport::available_ports().ok()?;
     let mut found = Vec::new();
     for port in ports {
-        if let serialport::SerialPortType::UsbPort(info) = port.port_type {
-            if info.vid == vid && info.pid == pid {
-                found.push(FoundPort {
-                    path: port.port_name,
-                    serial_number: info.serial_number,
-                    manufacturer: info.manufacturer,
-                    product: info.product,
-                });
-            }
+        if let serialport::SerialPortType::UsbPort(info) = port.port_type
+            && info.vid == vid
+            && info.pid == pid
+        {
+            found.push(FoundPort {
+                path: port.port_name,
+                serial_number: info.serial_number,
+                manufacturer: info.manufacturer,
+                product: info.product,
+            });
         }
     }
     found.sort_by_key(|port| callout_rank(&port.path));
@@ -73,7 +74,7 @@ pub fn wait_usb(vid: u16, pid: u16, timeout: Duration) -> Option<FoundPort> {
 }
 
 fn callout_rank(path: &str) -> u8 {
-    if path.contains("/tty.") { 1 } else { 0 }
+    u8::from(path.contains("/tty."))
 }
 
 #[derive(Debug)]
@@ -408,10 +409,9 @@ pub fn read_firmware_version_settled(path: &str) -> Result<Option<String>, Strin
 pub fn sibling_callout(path: &str) -> Option<String> {
     if let Some(rest) = path.strip_prefix("/dev/cu.") {
         Some(format!("/dev/tty.{rest}"))
-    } else if let Some(rest) = path.strip_prefix("/dev/tty.") {
-        Some(format!("/dev/cu.{rest}"))
     } else {
-        None
+        path.strip_prefix("/dev/tty.")
+            .map(|rest| format!("/dev/cu.{rest}"))
     }
 }
 
@@ -473,7 +473,7 @@ fn join_names(names: &[String]) -> String {
         [one] => one.clone(),
         [first, second] => format!("{first} and {second}"),
         many => {
-            let last = many.last().map(String::as_str).unwrap_or("");
+            let last = many.last().map_or("", String::as_str);
             format!("{}, and {last}", many[..many.len() - 1].join(", "))
         }
     }
@@ -498,7 +498,7 @@ pub fn holders_error(paths: &[String]) -> Option<String> {
     }
 }
 
-fn serials_compatible(before: &Option<String>, after: &Option<String>) -> bool {
+fn serials_compatible(before: Option<&str>, after: Option<&str>) -> bool {
     match (before, after) {
         (Some(left), Some(right)) => left == right,
         _ => true,
@@ -532,7 +532,10 @@ pub fn wait_reenumerate(previous: &FoundPort) -> Result<(), String> {
     while Instant::now() < back_deadline {
         let found = find_running().or_else(|| find_usb(BOOTLOADER_VID, BOOTLOADER_PID));
         if let Some(port) = found
-            && serials_compatible(&previous.serial_number, &port.serial_number)
+            && serials_compatible(
+                previous.serial_number.as_deref(),
+                port.serial_number.as_deref(),
+            )
         {
             return Ok(());
         }

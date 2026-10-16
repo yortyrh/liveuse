@@ -36,7 +36,7 @@ impl ActionError {
     }
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Default)]
 pub struct DeviceView {
     pub connected: bool,
     pub path: Option<String>,
@@ -47,20 +47,6 @@ pub struct DeviceView {
     pub bootloader: bool,
     #[serde(default)]
     pub foreign: bool,
-}
-
-impl Default for DeviceView {
-    fn default() -> Self {
-        Self {
-            connected: false,
-            path: None,
-            uptime_ms: None,
-            firmware: None,
-            error: None,
-            bootloader: false,
-            foreign: false,
-        }
-    }
 }
 
 pub struct AppState {
@@ -99,15 +85,14 @@ impl AppState {
     pub fn token(&self) -> String {
         self.token
             .read()
-            .unwrap_or_else(|err| err.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
     }
 
     pub fn scroll_is_inverted(&self) -> bool {
         self.scroll_inverted
             .read()
-            .map(|slot| *slot == Some(true))
-            .unwrap_or(false)
+            .is_ok_and(|slot| *slot == Some(true))
     }
 
     pub fn begin_control(&self, text: &str) {
@@ -145,10 +130,10 @@ impl AppState {
                 let _ = overlay.hide();
             }
         }
-        if text.is_some() {
-            if let Some(main) = self.app.get_webview_window("main") {
-                let _ = main.hide();
-            }
+        if text.is_some()
+            && let Some(main) = self.app.get_webview_window("main")
+        {
+            let _ = main.hide();
         }
     }
 
@@ -156,19 +141,19 @@ impl AppState {
         if let Ok(mut slot) = self.device_info.lock() {
             *slot = view.clone();
         }
-        if let Ok(item) = self.status_item.lock() {
-            if let Some(item) = item.as_ref() {
-                let text = if view.connected {
-                    "✓ XIAO connected"
-                } else if view.bootloader {
-                    "● Bootloader"
-                } else if view.foreign {
-                    "● Other firmware"
-                } else {
-                    "○ No device"
-                };
-                let _ = item.set_text(text);
-            }
+        if let Ok(item) = self.status_item.lock()
+            && let Some(item) = item.as_ref()
+        {
+            let text = if view.connected {
+                "✓ XIAO connected"
+            } else if view.bootloader {
+                "● Bootloader"
+            } else if view.foreign {
+                "● Other firmware"
+            } else {
+                "○ No device"
+            };
+            let _ = item.set_text(text);
         }
         let _ = self.app.emit("device-status", &view);
     }
@@ -370,7 +355,7 @@ async fn dispatch_named(state: &AppState, name: &str, args: &Value) -> Result<Va
                 opt_i32(args, "x"),
                 opt_i32(args, "y"),
                 duration(args)?,
-                tween(args)?,
+                tween(args),
             )
             .await?;
             Ok(json!({ "ok": true }))
@@ -381,7 +366,7 @@ async fn dispatch_named(state: &AppState, name: &str, args: &Value) -> Result<Va
                 opt_i32(args, "dx").unwrap_or(0),
                 opt_i32(args, "dy").unwrap_or(0),
                 duration(args)?,
-                tween(args)?,
+                tween(args),
             )
             .await?;
             Ok(json!({ "ok": true }))
@@ -468,14 +453,14 @@ async fn dispatch_named(state: &AppState, name: &str, args: &Value) -> Result<Va
             }))
         }
         "pixel" => {
-            let image = grab(state).await?;
+            let image = grab(state)?;
             let x = required_i32(args, "x")?;
             let y = required_i32(args, "y")?;
             let pixel = rgba_at(&image, x, y)?;
             Ok(json!({ "r": pixel[0], "g": pixel[1], "b": pixel[2] }))
         }
         "pixel_matches_color" => {
-            let image = grab(state).await?;
+            let image = grab(state)?;
             let x = required_i32(args, "x")?;
             let y = required_i32(args, "y")?;
             let pixel = rgba_at(&image, x, y)?;
@@ -802,11 +787,7 @@ async fn move_to(
 }
 
 fn pointer_gain(state: &AppState) -> (f64, f64) {
-    state
-        .pointer_gain
-        .lock()
-        .map(|slot| *slot)
-        .unwrap_or((1.0, 1.0))
+    state.pointer_gain.lock().map_or((1.0, 1.0), |slot| *slot)
 }
 
 async fn move_by(
@@ -890,7 +871,7 @@ async fn drag(state: &AppState, name: &str, args: &Value) -> Result<(), ActionEr
             opt_i32(args, "x"),
             opt_i32(args, "y"),
             duration(args)?,
-            tween(args)?,
+            tween(args),
         )
         .await
     } else {
@@ -899,7 +880,7 @@ async fn drag(state: &AppState, name: &str, args: &Value) -> Result<(), ActionEr
             opt_i32(args, "dx").unwrap_or(0),
             opt_i32(args, "dy").unwrap_or(0),
             duration(args)?,
-            tween(args)?,
+            tween(args),
         )
         .await
     };
@@ -943,29 +924,113 @@ fn press_steps(args: &Value) -> Result<Vec<Step>, ActionError> {
     )?)
 }
 
+/// Long enough for the focused app to read the pasteboard before it is restored.
+const PASTE_SETTLE: Duration = Duration::from_millis(200);
+
 async fn run_steps(state: &AppState, steps: Vec<Step>) -> Result<(), ActionError> {
     for step in steps {
         check_abort(state)?;
         match step {
             Step::Sleep(duration) => sleep_abortable(state, duration).await?,
-            Step::Cdc { line, silent } => {
-                let timeout = if silent {
-                    Some(Duration::from_millis(
-                        40 + 30 * line.len().saturating_sub(5) as u64,
-                    ))
-                } else {
-                    None
-                };
-                state
-                    .device
-                    .transact(line.clone(), timeout)
-                    .await
-                    .map_err(ActionError::Bad)?;
-                note_held(state, &line);
-            }
+            Step::Paste(text) => paste_text(state, &text).await?,
+            Step::Cdc { line, silent } => send_cdc(state, &line, silent).await?,
         }
     }
     Ok(())
+}
+
+async fn send_cdc(state: &AppState, line: &str, silent: bool) -> Result<(), ActionError> {
+    let timeout = if silent {
+        Some(Duration::from_millis(
+            40 + 30 * line.len().saturating_sub(5) as u64,
+        ))
+    } else {
+        None
+    };
+    state
+        .device
+        .transact(line.to_string(), timeout)
+        .await
+        .map_err(ActionError::Bad)?;
+    note_held(state, line);
+    Ok(())
+}
+
+/// Paste `text` with Command-V. The previous plain-text clipboard is put back
+/// afterwards, including when the paste itself fails. An image or file clipboard
+/// is not restored.
+async fn paste_text(state: &AppState, text: &str) -> Result<(), ActionError> {
+    let previous = clipboard_text()?;
+    let result = async {
+        set_clipboard(text)?;
+        for step in plan_hotkey(&["command".into(), "v".into()], 0.0)? {
+            check_abort(state)?;
+            match step {
+                Step::Cdc { line, silent } => send_cdc(state, &line, silent).await?,
+                Step::Sleep(duration) => sleep_abortable(state, duration).await?,
+                Step::Paste(_) => {
+                    return Err(ActionError::Bad("paste shortcut contained a paste".into()));
+                }
+            }
+        }
+        sleep_abortable(state, PASTE_SETTLE).await
+    }
+    .await;
+    let restored = set_clipboard(&previous);
+    result?;
+    restored
+}
+
+fn clipboard_text() -> Result<String, ActionError> {
+    #[cfg(target_os = "macos")]
+    {
+        let output = std::process::Command::new("pbpaste")
+            .output()
+            .map_err(|err| ActionError::Bad(format!("could not read the clipboard: {err}")))?;
+        if !output.status.success() {
+            return Err(ActionError::Bad("could not read the clipboard".into()));
+        }
+        String::from_utf8(output.stdout)
+            .map_err(|_| ActionError::Bad("clipboard is not utf-8 text".into()))
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err(ActionError::Bad(
+            "pasting text is only implemented on macOS".into(),
+        ))
+    }
+}
+
+fn set_clipboard(text: &str) -> Result<(), ActionError> {
+    #[cfg(target_os = "macos")]
+    {
+        let mut child = std::process::Command::new("pbcopy")
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|err| ActionError::Bad(format!("could not set the clipboard: {err}")))?;
+        {
+            let stdin = child
+                .stdin
+                .as_mut()
+                .ok_or_else(|| ActionError::Bad("could not set the clipboard".into()))?;
+            std::io::Write::write_all(stdin, text.as_bytes())
+                .map_err(|err| ActionError::Bad(format!("could not set the clipboard: {err}")))?;
+        }
+        let status = child
+            .wait()
+            .map_err(|err| ActionError::Bad(format!("could not set the clipboard: {err}")))?;
+        if !status.success() {
+            return Err(ActionError::Bad("could not set the clipboard".into()));
+        }
+        Ok(())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = text;
+        Err(ActionError::Bad(
+            "pasting text is only implemented on macOS".into(),
+        ))
+    }
 }
 
 fn note_held(state: &AppState, line: &str) {
@@ -1022,7 +1087,7 @@ async fn sleep_abortable(state: &AppState, total: Duration) -> Result<(), Action
     check_abort(state)
 }
 
-async fn grab(state: &AppState) -> Result<RgbaImage, ActionError> {
+fn grab(state: &AppState) -> Result<RgbaImage, ActionError> {
     capture_logical(state)
 }
 
@@ -1042,7 +1107,7 @@ fn crop_region(image: &RgbaImage, bounds: Option<Bounds>) -> Result<RgbaImage, A
 }
 
 async fn find_boxes(state: &AppState, args: &Value) -> Result<Vec<Bounds>, ActionError> {
-    let image = grab(state).await?;
+    let image = grab(state)?;
     let needle = vision::decode_png_base64(&required_str(args, "image_base64")?)?;
     let grayscale = args
         .get("grayscale")
@@ -1169,10 +1234,10 @@ fn rgb_arg(args: &Value) -> Result<[u8; 3], ActionError> {
 }
 
 fn operation_label(name: &str, args: &Value) -> String {
-    if let Some(text) = args.get("operation").and_then(Value::as_str) {
-        if !text.trim().is_empty() {
-            return text.trim().to_string();
-        }
+    if let Some(text) = args.get("operation").and_then(Value::as_str)
+        && !text.trim().is_empty()
+    {
+        return text.trim().to_string();
     }
     match name {
         "write" => format!("Typing {}", preview(args.get("text"))),
@@ -1228,12 +1293,11 @@ fn duration(args: &Value) -> Result<f64, ActionError> {
     number(args, "duration", 0.0)
 }
 
-fn tween(args: &Value) -> Result<String, ActionError> {
-    Ok(args
-        .get("tween")
+fn tween(args: &Value) -> String {
+    args.get("tween")
         .and_then(Value::as_str)
         .unwrap_or("linear")
-        .to_string())
+        .to_string()
 }
 
 fn number(args: &Value, key: &str, default: f64) -> Result<f64, ActionError> {

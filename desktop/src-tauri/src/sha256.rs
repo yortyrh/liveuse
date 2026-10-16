@@ -25,10 +25,11 @@ pub fn digest(message: &[u8]) -> [u8; 32] {
     }
     data.extend_from_slice(&bit_len.to_be_bytes());
 
-    for chunk in data.chunks_exact(64) {
+    let (blocks, _) = data.as_chunks::<64>();
+    for chunk in blocks {
         let mut words = [0u32; 64];
-        for (index, bytes) in chunk.chunks_exact(4).take(16).enumerate() {
-            words[index] = u32::from_be_bytes(bytes.try_into().expect("4 bytes"));
+        for (word, bytes) in words.iter_mut().zip(chunk.as_chunks::<4>().0) {
+            *word = u32::from_be_bytes(*bytes);
         }
         for index in 16..64 {
             let s0 = words[index - 15].rotate_right(7)

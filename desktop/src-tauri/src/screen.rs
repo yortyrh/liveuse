@@ -89,8 +89,9 @@ fn capture_nominal(bounds: objc2_core_foundation::CGRect) -> Result<RgbaImage, S
     for line in data.chunks_exact(stride).take(height) {
         pixels.extend_from_slice(&line[..row]);
     }
-    for bgra in pixels.chunks_exact_mut(4) {
-        bgra.swap(0, 2);
+    let (bgra, _) = pixels.as_chunks_mut::<4>();
+    for pixel in bgra {
+        pixel.swap(0, 2);
     }
     RgbaImage::from_raw(width as u32, height as u32, pixels)
         .ok_or_else(|| "the screen capture has the wrong size".into())
@@ -246,11 +247,10 @@ fn halve(image: &RgbaImage) -> RgbaImage {
     for (y, dst) in out.chunks_exact_mut(width * 4).enumerate() {
         let top = &src[2 * y * stride..][..stride];
         let bottom = &src[(2 * y + 1) * stride..][..stride];
-        for ((pixel, a), b) in dst
-            .chunks_exact_mut(4)
-            .zip(top.chunks_exact(8))
-            .zip(bottom.chunks_exact(8))
-        {
+        let (dst_pixels, _) = dst.as_chunks_mut::<4>();
+        let (top_pairs, _) = top.as_chunks::<8>();
+        let (bottom_pairs, _) = bottom.as_chunks::<8>();
+        for ((pixel, a), b) in dst_pixels.iter_mut().zip(top_pairs).zip(bottom_pairs) {
             for c in 0..4 {
                 let sum = a[c] as u16 + a[c + 4] as u16 + b[c] as u16 + b[c + 4] as u16;
                 pixel[c] = ((sum + 2) / 4) as u8;

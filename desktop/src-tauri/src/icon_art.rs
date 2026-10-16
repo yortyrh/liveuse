@@ -19,7 +19,7 @@ fn count_near(img: &image::RgbaImage, rgb: [u8; 3], tol: u8) -> usize {
 #[test]
 fn app_icon_matches_the_spark_mark() {
     let svg = std::fs::read_to_string(icons_dir().join("icon.svg")).expect("read icon.svg");
-    assert!(svg.contains(r#"M26 18 L26 84 L44 66 L58 94 L68 89 L54 61 L78 61 Z"#));
+    assert!(svg.contains(r"M26 18 L26 84 L44 66 L58 94 L68 89 L54 61 L78 61 Z"));
     assert!(svg.contains(r##"fill="#3EE0E8""##));
     assert!(svg.contains(r##"fill="#F5B429""##));
     assert!(svg.contains(r##"fill="#FFF4CC""##));
@@ -44,7 +44,7 @@ fn app_icon_matches_the_spark_mark() {
 #[test]
 fn tray_template_is_a_black_mask() {
     let svg = std::fs::read_to_string(icons_dir().join("tray.svg")).expect("read tray.svg");
-    assert!(svg.contains(r#"M3 1.5 L3 12.5 L6 9.5 L8.2 14 L10 13.1 L7.8 8.6 L11.5 8.6 Z"#));
+    assert!(svg.contains(r"M3 1.5 L3 12.5 L6 9.5 L8.2 14 L10 13.1 L7.8 8.6 L11.5 8.6 Z"));
     assert!(
         svg.contains(
             "12.2,11.2 12.7,12.6 14.2,13.1 12.7,13.6 12.2,15 11.7,13.6 10.2,13.1 11.7,12.6"

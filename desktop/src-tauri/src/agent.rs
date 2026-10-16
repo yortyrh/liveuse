@@ -24,7 +24,7 @@ use crate::remote_perform;
 const PREAMBLE: &str = "\
 You are the LiveUse agent. You control the computer with the tools, like a human operator.
 The screen origin is the top left and Y grows downward. Screenshot, position, and click coordinates share the same grid.
-Coordinates are screenshot pixels, or 0 to 1000 on both axes when a call sets space to normalized. Use the system you natively point in, and set space on every call that takes coordinates. Never rescale a point yourself: label it with the system it came from.
+Coordinates are screenshot pixels. Omit space for pixels. Set space to normalized only when the point is already on a 0 to 1000 grid. Never rescale a point yourself.
 Look at the screen before acting. After each important action, look again.
 The computer reacts with a delay. After a shortcut or click that opens something, such as command+space for Spotlight, call wait (about 0.5 seconds) before typing into it.
 When you are done, reply in the user's language and do not call more tools.
@@ -235,14 +235,14 @@ fn begin_thinking(state: &AppState, thinking: &mut Option<Thinking>) {
     let timing = Timed::start();
     emit_activity(
         state,
-        &timing.id,
-        "reasoning",
-        "Thinking",
-        None,
-        true,
-        Some(timing.started_ms),
-        None,
-        false,
+        Activity {
+            id: &timing.id,
+            role: "reasoning",
+            text: "Thinking",
+            pending: true,
+            started: Some(timing.started_ms),
+            ..Activity::default()
+        },
     );
     *thinking = Some(Thinking {
         timing,
@@ -260,14 +260,14 @@ fn note_reasoning(state: &AppState, thinking: &mut Option<Thinking>) {
     current.reasoning = true;
     emit_activity(
         state,
-        &current.timing.id,
-        "reasoning",
-        "Reasoning",
-        None,
-        true,
-        Some(current.timing.started_ms),
-        None,
-        false,
+        Activity {
+            id: &current.timing.id,
+            role: "reasoning",
+            text: "Reasoning",
+            pending: true,
+            started: Some(current.timing.started_ms),
+            ..Activity::default()
+        },
     );
 }
 
@@ -282,14 +282,14 @@ fn end_thinking(state: &AppState, thinking: &mut Option<Thinking>) {
     };
     emit_activity(
         state,
-        &current.timing.id,
-        "reasoning",
-        label,
-        None,
-        false,
-        Some(current.timing.started_ms),
-        Some(current.timing.elapsed_ms()),
-        false,
+        Activity {
+            id: &current.timing.id,
+            role: "reasoning",
+            text: label,
+            started: Some(current.timing.started_ms),
+            ms: Some(current.timing.elapsed_ms()),
+            ..Activity::default()
+        },
     );
 }
 
@@ -299,14 +299,12 @@ fn dismiss_thinking(state: &AppState, thinking: &mut Option<Thinking>) {
     };
     emit_activity(
         state,
-        &current.timing.id,
-        "reasoning",
-        "",
-        None,
-        false,
-        None,
-        None,
-        true,
+        Activity {
+            id: &current.timing.id,
+            role: "reasoning",
+            reset: true,
+            ..Activity::default()
+        },
     );
 }
 
@@ -476,193 +474,56 @@ fn history_messages(turns: &[Turn]) -> Vec<Message> {
         .collect()
 }
 
+const AGENT_TOOLS: &[&str] = &[
+    "screenshot",
+    "zoom",
+    "position",
+    "cursor_position",
+    "size",
+    "move_to",
+    "move",
+    "mouse_move",
+    "click",
+    "left_click",
+    "right_click",
+    "middle_click",
+    "double_click",
+    "triple_click",
+    "drag_to",
+    "left_click_drag",
+    "left_mouse_down",
+    "left_mouse_up",
+    "scroll",
+    "hscroll",
+    "write",
+    "type",
+    "press",
+    "key",
+    "hold_key",
+    "hotkey",
+    "key_down",
+    "key_up",
+    "wait",
+    "computer",
+];
+
 fn computer_tools(state: Arc<AppState>, target: PerformTarget) -> Vec<DynamicTool> {
-    let specs = [
-        (
-            "screenshot",
-            "Capture the screen. width and height are the pixel click grid, origin at the top left; with space normalized, clicks use 0 to 1000 on both axes instead.",
-            schema(&[("operation", "string", "status text")], &[]),
-        ),
-        ("position", "Current cursor position.", schema(&[], &[])),
-        ("size", "Screen size.", schema(&[], &[])),
-        (
-            "move_to",
-            mcp::MOVE_TO,
-            schema(
-                &[
-                    ("x", "integer", "x"),
-                    ("y", "integer", "y"),
-                    ("duration", "number", "seconds"),
-                    (
-                        "tween",
-                        "string",
-                        "linear, ease_in_quad, ease_out_quad, ease_in_out_quad, ease_in_bounce, ease_in_elastic",
-                    ),
-                    ("operation", "string", "status"),
-                ],
-                &[],
-            ),
-        ),
-        (
-            "move",
-            mcp::MOVE,
-            schema(
-                &[
-                    ("dx", "integer", "pixels"),
-                    ("dy", "integer", "pixels"),
-                    ("duration", "number", "seconds"),
-                    ("tween", "string", "tween"),
-                    ("operation", "string", "status"),
-                ],
-                &[],
-            ),
-        ),
-        (
-            "click",
-            mcp::CLICK,
-            schema(
-                &[
-                    ("x", "integer", "x"),
-                    ("y", "integer", "y"),
-                    ("clicks", "integer", "repeats"),
-                    ("interval", "number", "seconds"),
-                    ("button", "string", "left, right, or middle"),
-                    ("operation", "string", "status"),
-                ],
-                &[],
-            ),
-        ),
-        (
-            "double_click",
-            "Double-click.",
-            schema(
-                &[
-                    ("x", "integer", "x"),
-                    ("y", "integer", "y"),
-                    ("button", "string", "button"),
-                    ("operation", "string", "status"),
-                ],
-                &[],
-            ),
-        ),
-        (
-            "right_click",
-            "Right-click.",
-            schema(
-                &[
-                    ("x", "integer", "x"),
-                    ("y", "integer", "y"),
-                    ("operation", "string", "status"),
-                ],
-                &[],
-            ),
-        ),
-        (
-            "drag_to",
-            "Drag to a coordinate.",
-            schema(
-                &[
-                    ("x", "integer", "x"),
-                    ("y", "integer", "y"),
-                    ("button", "string", "left, right, or middle"),
-                    ("duration", "number", "seconds"),
-                    ("operation", "string", "status"),
-                ],
-                &[],
-            ),
-        ),
-        (
-            "scroll",
-            "Vertical wheel. Positive scrolls up.",
-            schema(
-                &[
-                    ("clicks", "integer", "notches"),
-                    ("x", "integer", "x"),
-                    ("y", "integer", "y"),
-                    ("operation", "string", "status"),
-                ],
-                &["clicks"],
-            ),
-        ),
-        (
-            "hscroll",
-            "Horizontal wheel. Positive scrolls right.",
-            schema(
-                &[
-                    ("clicks", "integer", "notches"),
-                    ("operation", "string", "status"),
-                ],
-                &["clicks"],
-            ),
-        ),
-        (
-            "write",
-            mcp::WRITE,
-            schema(
-                &[
-                    ("text", "string", "text"),
-                    ("interval", "number", "seconds between keys"),
-                    ("operation", "string", "status"),
-                ],
-                &["text"],
-            ),
-        ),
-        (
-            "press",
-            mcp::PRESS,
-            schema(
-                &[
-                    ("key", "string", "one key name or character"),
-                    ("keys", "array", "keys tapped one after another"),
-                    ("presses", "integer", "repeats"),
-                    ("operation", "string", "status"),
-                ],
-                &[],
-            ),
-        ),
-        (
-            "hotkey",
-            mcp::HOTKEY,
-            schema(
-                &[("keys", "array", "keys"), ("operation", "string", "status")],
-                &["keys"],
-            ),
-        ),
-        (
-            "wait",
-            mcp::WAIT,
-            schema(
-                &[
-                    ("duration", "number", "seconds, 0 to 300"),
-                    ("operation", "string", "status"),
-                ],
-                &["duration"],
-            ),
-        ),
-        (
-            "key_down",
-            "Hold a key.",
-            schema(
-                &[("key", "string", "key"), ("operation", "string", "status")],
-                &["key"],
-            ),
-        ),
-        (
-            "key_up",
-            "Release a key.",
-            schema(
-                &[("key", "string", "key"), ("operation", "string", "status")],
-                &["key"],
-            ),
-        ),
-    ];
-    specs
-        .into_iter()
-        .map(|(name, description, parameters)| {
+    let defs = mcp::tool_defs();
+    AGENT_TOOLS
+        .iter()
+        .map(|name| {
+            let def = defs
+                .iter()
+                .find(|tool| tool["name"] == *name)
+                .unwrap_or_else(|| panic!("missing tool {name}"));
+            let description = def["description"]
+                .as_str()
+                .unwrap_or_else(|| panic!("tool {name} has no description"))
+                .to_string();
             tool(
                 name,
                 description,
-                parameters,
+                def["inputSchema"].clone(),
                 Arc::clone(&state),
                 target.clone(),
             )
@@ -672,7 +533,7 @@ fn computer_tools(state: Arc<AppState>, target: PerformTarget) -> Vec<DynamicToo
 
 fn tool(
     name: &'static str,
-    description: &'static str,
+    description: impl Into<String>,
     parameters: Value,
     state: Arc<AppState>,
     target: PerformTarget,
@@ -699,14 +560,14 @@ async fn call_tool(
     let label = describe(name, &args);
     emit_activity(
         state,
-        &timing.id,
-        "tool",
-        &label,
-        None,
-        true,
-        Some(timing.started_ms),
-        None,
-        false,
+        Activity {
+            id: &timing.id,
+            role: "tool",
+            text: &label,
+            pending: true,
+            started: Some(timing.started_ms),
+            ..Activity::default()
+        },
     );
     let outcome = match target {
         PerformTarget::Local => execute(state, name, &local_args(name, &args))
@@ -727,21 +588,45 @@ async fn call_tool(
         finish_tool(state, &timing, &format!("{label} → aborted"), None);
         return Err(ToolExecutionError::cancelled("aborted"));
     }
-    if name == "screenshot" {
-        return screenshot_output(state, &timing, value);
+    if let Some(kind) = image_kind(name, &args) {
+        return image_output(state, &timing, kind, value);
+    }
+    if name == "cursor_position"
+        || (name == "computer"
+            && args.get("action").and_then(Value::as_str) == Some("cursor_position"))
+    {
+        let x = value.get("x").and_then(Value::as_i64).unwrap_or(0);
+        let y = value.get("y").and_then(Value::as_i64).unwrap_or(0);
+        let text = format!("X={x},Y={y}");
+        finish_tool(state, &timing, &format!("{label} → {text}"), None);
+        return Ok(ToolOutput::text(text));
     }
     let shown = compact_result(&value);
     finish_tool(state, &timing, &format!("{label} → {shown}"), None);
     Ok(ToolOutput::json(strip_images(value)))
 }
 
+/// screenshot and zoom return an image. `computer` does too when its action is one of those.
+fn image_kind(name: &str, args: &Value) -> Option<&'static str> {
+    match name {
+        "screenshot" => Some("screenshot"),
+        "zoom" => Some("zoom"),
+        "computer" => match args.get("action").and_then(Value::as_str) {
+            Some("screenshot") => Some("screenshot"),
+            Some("zoom") => Some("zoom"),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 /// The model only receives the JPEG, so a local screenshot skips the PNG.
 fn local_args(name: &str, args: &Value) -> Value {
     let mut args = args.clone();
-    if name == "screenshot" {
-        if let Some(object) = args.as_object_mut() {
-            object.insert("format".into(), json!("jpeg"));
-        }
+    if image_kind(name, &args) == Some("screenshot")
+        && let Some(object) = args.as_object_mut()
+    {
+        object.insert("format".into(), json!("jpeg"));
     }
     args
 }
@@ -749,20 +634,22 @@ fn local_args(name: &str, args: &Value) -> Value {
 fn finish_tool(state: &AppState, timing: &Timed, text: &str, image: Option<String>) {
     emit_activity(
         state,
-        &timing.id,
-        "tool",
-        text,
-        image,
-        false,
-        Some(timing.started_ms),
-        Some(timing.elapsed_ms()),
-        false,
+        Activity {
+            id: &timing.id,
+            role: "tool",
+            text,
+            image,
+            started: Some(timing.started_ms),
+            ms: Some(timing.elapsed_ms()),
+            ..Activity::default()
+        },
     );
 }
 
-fn screenshot_output(
+fn image_output(
     state: &AppState,
     timing: &Timed,
+    kind: &str,
     value: Value,
 ) -> Result<ToolOutput, ToolExecutionError> {
     let width = value.get("width").and_then(Value::as_u64).unwrap_or(0);
@@ -773,13 +660,34 @@ fn screenshot_output(
         .unwrap_or("")
         .to_string();
     if jpeg.is_empty() {
-        finish_tool(state, timing, "screenshot → screenshot had no image", None);
-        return Err(ToolExecutionError::other("screenshot had no image"));
+        finish_tool(
+            state,
+            timing,
+            &format!("{kind} → {kind} had no image"),
+            None,
+        );
+        return Err(ToolExecutionError::other(format!("{kind} had no image")));
     }
-    let caption = format!(
-        "Screen {width}×{height}, origin at the top left. {}",
-        mcp::grid_note(width, height)
-    );
+    let caption = if kind == "zoom" {
+        let x0 = value.get("x0").and_then(Value::as_i64).unwrap_or(0);
+        let y0 = value.get("y0").and_then(Value::as_i64).unwrap_or(0);
+        let x1 = value.get("x1").and_then(Value::as_i64).unwrap_or(0);
+        let y1 = value.get("y1").and_then(Value::as_i64).unwrap_or(0);
+        let shot_w = value.get("shot_width").and_then(Value::as_u64).unwrap_or(0);
+        let shot_h = value
+            .get("shot_height")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        format!(
+            "Zoom {width}×{height} of ({x0}, {y0})-({x1}, {y1}). Click coordinates stay on the full screenshot. {}",
+            mcp::grid_note(shot_w, shot_h)
+        )
+    } else {
+        format!(
+            "Screen {width}×{height}, origin at the top left. {}",
+            mcp::grid_note(width, height)
+        )
+    };
     finish_tool(
         state,
         timing,
@@ -844,10 +752,6 @@ fn strip_images(mut value: Value) -> Value {
     value
 }
 
-fn schema(properties: &[(&str, &str, &str)], required: &[&str]) -> Value {
-    mcp::input_schema(properties, required)
-}
-
 fn new_id() -> String {
     format!("{:016x}", rand::random::<u64>())
 }
@@ -855,39 +759,41 @@ fn new_id() -> String {
 fn emit_line(state: &AppState, role: &str, text: &str, image: Option<String>) {
     emit_activity(
         state,
-        &new_id(),
-        role,
-        text,
-        image,
-        false,
-        None,
-        None,
-        false,
+        Activity {
+            id: &new_id(),
+            role,
+            text,
+            image,
+            ..Activity::default()
+        },
     );
 }
 
-fn emit_activity(
-    state: &AppState,
-    id: &str,
-    role: &str,
-    text: &str,
+/// One row of the agent activity feed, as the frontend receives it.
+#[derive(Default)]
+struct Activity<'a> {
+    id: &'a str,
+    role: &'a str,
+    text: &'a str,
     image: Option<String>,
     pending: bool,
     started: Option<u64>,
     ms: Option<u64>,
     reset: bool,
-) {
+}
+
+fn emit_activity(state: &AppState, activity: Activity) {
     let _ = state.app.emit(
         "agent-line",
         json!({
-            "id": id,
-            "role": role,
-            "text": text,
-            "image": image,
-            "pending": pending,
-            "started": started,
-            "ms": ms,
-            "reset": reset,
+            "id": activity.id,
+            "role": activity.role,
+            "text": activity.text,
+            "image": activity.image,
+            "pending": activity.pending,
+            "started": activity.started,
+            "ms": activity.ms,
+            "reset": activity.reset,
         }),
     );
 }
@@ -917,6 +823,21 @@ fn emit_delta(
 fn unix_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| u64::try_from(duration.as_millis()).unwrap_or(u64::MAX))
-        .unwrap_or(0)
+        .map_or(0, |duration| {
+            u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn agent_tools_come_from_the_mcp_definitions() {
+        let defs = crate::mcp::tool_defs();
+        for name in super::AGENT_TOOLS {
+            assert!(
+                defs.iter().any(|tool| tool["name"] == *name),
+                "missing tool {name}"
+            );
+        }
+    }
 }

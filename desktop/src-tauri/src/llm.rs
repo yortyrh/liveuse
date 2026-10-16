@@ -81,17 +81,17 @@ fn reasoning_choices(spec: &ModelSpec) -> Vec<ReasoningChoice> {
     for effort in levels {
         rows.push(choice(effort.as_str(), effort_label(effort).into()));
     }
-    if support.levels.is_empty() {
-        if let Some(range) = &support.budget {
-            for tokens in BUDGETS
-                .into_iter()
-                .filter(|tokens| range.contains(tokens) && tokens < range.end())
-            {
-                rows.push(choice(
-                    &format!("budget:{tokens}"),
-                    format!("{}K token budget", tokens / 1024),
-                ));
-            }
+    if support.levels.is_empty()
+        && let Some(range) = &support.budget
+    {
+        for tokens in BUDGETS
+            .into_iter()
+            .filter(|tokens| range.contains(tokens) && tokens < range.end())
+        {
+            rows.push(choice(
+                &format!("budget:{tokens}"),
+                format!("{}K token budget", tokens / 1024),
+            ));
         }
     }
     if rows.len() < 2 { Vec::new() } else { rows }
@@ -122,9 +122,7 @@ pub fn canonical_provider(provider: &str) -> Result<String, String> {
 }
 
 pub fn needs_key(provider: &str) -> bool {
-    ProviderId::resolve(provider.trim())
-        .map(|id| id.requires_credential())
-        .unwrap_or(true)
+    ProviderId::resolve(provider.trim()).map_or(true, |id| id.requires_credential())
 }
 
 pub fn providers() -> Vec<ProviderChoice> {

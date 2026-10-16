@@ -17,6 +17,26 @@ export default defineConfig(() => ({
     },
   },
 
+  build: {
+    rolldownOptions: {
+      output: {
+        // Keep the markdown pipeline and React out of the app chunk so each stays under the size limit.
+        codeSplitting: {
+          groups: [
+            {
+              name: "markdown",
+              test: /node_modules[\\/](react-markdown|remark-.*|rehype-.*|unified|micromark.*|mdast-.*|hast-.*|unist-.*|vfile.*|property-information|decode-named-character-reference|character-entities.*|trim-lines|space-separated-tokens|comma-separated-tokens|devlop|bail|trough|is-plain-obj|ccount|markdown-table|longest-streak|zwitch|html-url-attributes|estree-util-.*)[\\/]/,
+            },
+            {
+              name: "react",
+              test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+            },
+          ],
+        },
+      },
+    },
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors

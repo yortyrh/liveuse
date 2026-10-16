@@ -1,7 +1,7 @@
 use base64::Engine;
 use image::{Rgba, RgbaImage};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Bounds {
     pub left: u32,
     pub top: u32,
@@ -18,10 +18,7 @@ pub fn pixel_matches(actual: [u8; 3], expected: [u8; 3], tolerance: u8) -> bool 
 
 pub fn decode_png_base64(data: &str) -> Result<RgbaImage, String> {
     let trimmed = data.trim();
-    let payload = trimmed
-        .split_once(',')
-        .map(|(_, rest)| rest)
-        .unwrap_or(trimmed);
+    let payload = trimmed.split_once(',').map_or(trimmed, |(_, rest)| rest);
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(payload.trim())
         .map_err(|err| format!("png base64 invalido: {err}"))?;
@@ -39,10 +36,10 @@ pub fn locate(
     if needle.width() == 0 || needle.height() == 0 {
         return Err("the image to find is empty".into());
     }
-    if let Some(score) = confidence {
-        if !(0.0..=1.0).contains(&score) {
-            return Err("confidence must be between 0 and 1".into());
-        }
+    if let Some(score) = confidence
+        && !(0.0..=1.0).contains(&score)
+    {
+        return Err("confidence must be between 0 and 1".into());
     }
     let (search, origin_x, origin_y) = match region {
         Some(bounds) => {
@@ -146,7 +143,7 @@ fn locate_confidence(
     let (nw, nh) = (needle.width(), needle.height());
     let comparisons = (hw - nw + 1) as u64 * (hh - nh + 1) as u64 * nw as u64 * nh as u64;
     if comparisons <= 4_000_000 {
-        return peaks_at(&hay, hw, hh, &nee, nw, nh, confidence, 1);
+        return peaks_at(&hay, hw, hh, &nee, nw, nh, confidence);
     }
     let mut factor = 2u32;
     while factor < 16 {
@@ -172,7 +169,6 @@ fn locate_confidence(
         nw_s,
         nh_s,
         (confidence * 0.85).clamp(0.0, 1.0),
-        1,
     );
     let mut refined = Vec::new();
     for candidate in coarse {
@@ -186,20 +182,20 @@ fn locate_confidence(
         for y in y0..=y1 {
             for x in x0..=x1 {
                 let score = ncc_at(&hay, hw, &nee, nw, nh, x, y);
-                if best.map(|(_, _, current)| score > current).unwrap_or(true) {
+                if best.is_none_or(|(_, _, current)| score > current) {
                     best = Some((x, y, score));
                 }
             }
         }
-        if let Some((x, y, score)) = best {
-            if score + 1e-6 >= confidence {
-                refined.push(Bounds {
-                    left: x,
-                    top: y,
-                    width: nw,
-                    height: nh,
-                });
-            }
+        if let Some((x, y, score)) = best
+            && score + 1e-6 >= confidence
+        {
+            refined.push(Bounds {
+                left: x,
+                top: y,
+                width: nw,
+                height: nh,
+            });
         }
         if refined.len() == 50 {
             break;
@@ -246,7 +242,6 @@ fn peaks_at(
     nw: u32,
     nh: u32,
     confidence: f64,
-    _step: u32,
 ) -> Vec<Bounds> {
     let mut found = Vec::new();
     if nw > hw || nh > hh {

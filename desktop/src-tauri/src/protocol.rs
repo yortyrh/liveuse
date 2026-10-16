@@ -9,8 +9,13 @@ const TYPE_SYNC: &str = "ECHO type done";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Step {
-    Cdc { line: String, silent: bool },
+    Cdc {
+        line: String,
+        silent: bool,
+    },
     Sleep(Duration),
+    /// Characters the HID keyboard cannot type. The host pastes this text.
+    Paste(String),
 }
 
 pub fn tokens_equal(left: &str, right: &str) -> bool {
@@ -167,12 +172,11 @@ fn named_key(name: &str) -> Result<(String, KeyKind), String> {
         | "semicolon" | "quote" | "grave" | "comma" | "dot" | "slash" | "right" | "left"
         | "down" | "up" | "insert" | "home" | "end" => (name.as_str(), KeyKind::Named),
         other => {
-            if let Some(rest) = other.strip_prefix('f') {
-                if let Ok(n) = rest.parse::<u8>() {
-                    if (1..=12).contains(&n) {
-                        return Ok((other.to_string(), KeyKind::Named));
-                    }
-                }
+            if let Some(rest) = other.strip_prefix('f')
+                && let Ok(n) = rest.parse::<u8>()
+                && (1..=12).contains(&n)
+            {
+                return Ok((other.to_string(), KeyKind::Named));
             }
             return Err(format!("unsupported key: {other}"));
         }
@@ -301,7 +305,7 @@ fn sync_after_type(out: &mut Vec<Step>) {
         .rev()
         .find_map(|step| match step {
             Step::Cdc { silent, .. } => Some(*silent),
-            Step::Sleep(_) => None,
+            Step::Sleep(_) | Step::Paste(_) => None,
         })
         .unwrap_or(false);
     if ends_silent {
@@ -336,10 +340,10 @@ pub fn plan_press(key: &str, presses: u32, interval: f64) -> Result<Vec<Step>, S
     }
     let mut out = Vec::new();
     for i in 0..presses {
-        if i > 0 {
-            if let Some(pause) = sleep_secs(interval)? {
-                out.push(pause);
-            }
+        if i > 0
+            && let Some(pause) = sleep_secs(interval)?
+        {
+            out.push(pause);
         }
         match token_of(key)? {
             Token::Char(ch) => out.push(cdc(format!("TYPE {ch}"), true)),
@@ -405,10 +409,10 @@ pub fn plan_hotkey(keys: &[String], interval: f64) -> Result<Vec<Step>, String> 
     }
     let mut out = Vec::new();
     for (i, token) in parsed.iter().enumerate() {
-        if i > 0 {
-            if let Some(pause) = sleep_secs(interval)? {
-                out.push(pause);
-            }
+        if i > 0
+            && let Some(pause) = sleep_secs(interval)?
+        {
+            out.push(pause);
         }
         let name = match token {
             Token::Modifier(name) | Token::Named(name) => name.clone(),
@@ -438,7 +442,8 @@ pub fn plan_write(text: &str, interval: f64) -> Result<Vec<Step>, String> {
     }
     let mut out = Vec::new();
     let mut printable = String::new();
-    let flush = |printable: &mut String, out: &mut Vec<Step>| {
+    let mut foreign = String::new();
+    let flush_printable = |printable: &mut String, out: &mut Vec<Step>| {
         while !printable.is_empty() {
             // Firmware 0.4.0 drops every space between TYPE and the text.
             let spaces = printable.len() - printable.trim_start_matches(' ').len();
@@ -454,10 +459,24 @@ pub fn plan_write(text: &str, interval: f64) -> Result<Vec<Step>, String> {
             printable.drain(..byte_len);
         }
     };
+    let flush_foreign = |foreign: &mut String, out: &mut Vec<Step>| {
+        if foreign.is_empty() {
+            return;
+        }
+        // The device must finish the ASCII typed before this paste.
+        sync_after_type(out);
+        out.push(Step::Paste(std::mem::take(foreign)));
+    };
     let mut first = true;
     for ch in text.chars() {
+        // A pasted run is one paste, so the interval does not split it.
+        if paste_char(ch) && !foreign.is_empty() {
+            foreign.push(ch);
+            continue;
+        }
         if !first && interval > 0.0 {
-            flush(&mut printable, &mut out);
+            flush_printable(&mut printable, &mut out);
+            flush_foreign(&mut foreign, &mut out);
             if let Some(pause) = sleep_secs(interval)? {
                 out.push(pause);
             }
@@ -465,24 +484,37 @@ pub fn plan_write(text: &str, interval: f64) -> Result<Vec<Step>, String> {
         first = false;
         match ch {
             '\n' | '\r' => {
-                flush(&mut printable, &mut out);
+                flush_printable(&mut printable, &mut out);
+                flush_foreign(&mut foreign, &mut out);
                 out.push(cdc("KEY enter", false));
             }
             '\t' => {
-                flush(&mut printable, &mut out);
+                flush_printable(&mut printable, &mut out);
+                flush_foreign(&mut foreign, &mut out);
                 out.push(cdc("KEY tab", false));
             }
-            ' '..='~' => printable.push(ch),
-            _ => {
-                return Err(format!(
-                    "unsupported character: {ch} (only printable ASCII, newline and tab)"
-                ));
+            ' '..='~' => {
+                flush_foreign(&mut foreign, &mut out);
+                printable.push(ch);
+            }
+            ch if (ch as u32) < 0x20 || ch == '\u{7F}' => {
+                return Err(format!("unsupported control character: {ch:?}"));
+            }
+            ch => {
+                flush_printable(&mut printable, &mut out);
+                foreign.push(ch);
             }
         }
     }
-    flush(&mut printable, &mut out);
+    flush_printable(&mut printable, &mut out);
+    flush_foreign(&mut foreign, &mut out);
     sync_after_type(&mut out);
     Ok(out)
+}
+
+/// A character the US HID keyboard cannot send, and that is safe to paste.
+fn paste_char(ch: char) -> bool {
+    !matches!(ch, '\n' | '\r' | '\t' | ' '..='~') && !((ch as u32) < 0x20 || ch == '\u{7F}')
 }
 
 pub fn chunk_delta(dx: i32, dy: i32) -> Vec<(i32, i32)> {
@@ -674,10 +706,10 @@ pub fn click_steps(button: &str, clicks: u32, interval: f64) -> Result<Vec<Step>
         return Ok(out);
     }
     for i in 0..clicks {
-        if i > 0 {
-            if let Some(pause) = sleep_secs(interval)? {
-                out.push(pause);
-            }
+        if i > 0
+            && let Some(pause) = sleep_secs(interval)?
+        {
+            out.push(pause);
         }
         if button == "middle" {
             out.push(cdc("MDOWN middle", false));
@@ -739,7 +771,7 @@ pub fn lines_of(steps: &[Step]) -> Vec<String> {
         .iter()
         .filter_map(|step| match step {
             Step::Cdc { line, .. } => Some(line.clone()),
-            Step::Sleep(_) => None,
+            Step::Sleep(_) | Step::Paste(_) => None,
         })
         .collect()
 }
@@ -866,7 +898,38 @@ mod tests {
             .filter_map(|line| line.strip_prefix("TYPE "))
             .collect::<String>();
         assert_eq!(typed.len() + 1, text.len());
-        assert!(plan_write("é", 0.0).is_err());
+        assert!(plan_write("\u{1}", 0.0).is_err());
+        assert!(plan_write("\u{7F}", 0.0).is_err());
+    }
+
+    #[test]
+    fn write_pastes_non_ascii_as_one_run() {
+        let steps = plan_write("hi 👋", 0.0).unwrap();
+        assert!(
+            steps
+                .iter()
+                .any(|step| matches!(step, Step::Paste(text) if text == "👋"))
+        );
+        assert!(
+            plan_write("hi", 0.0)
+                .unwrap()
+                .iter()
+                .all(|step| !matches!(step, Step::Paste(_)))
+        );
+        let family = "👨‍👩‍👧‍👦";
+        let pasted: Vec<_> = plan_write(family, 0.2)
+            .unwrap()
+            .into_iter()
+            .filter_map(|step| match step {
+                Step::Paste(text) => Some(text),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(pasted, vec![family.to_string()]);
+        assert!(matches!(
+            plan_write("é", 0.0).unwrap().first(),
+            Some(Step::Paste(text)) if text == "é"
+        ));
     }
 
     #[test]
@@ -874,7 +937,10 @@ mod tests {
         let chord = |keys: &[&str]| {
             lines_of(
                 &plan_hotkey(
-                    &keys.iter().map(|key| key.to_string()).collect::<Vec<_>>(),
+                    &keys
+                        .iter()
+                        .map(std::string::ToString::to_string)
+                        .collect::<Vec<_>>(),
                     0.0,
                 )
                 .unwrap(),

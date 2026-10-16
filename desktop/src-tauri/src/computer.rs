@@ -36,6 +36,17 @@ pub enum Call {
 
 pub fn prepare(name: &str, args: &Value) -> Result<Call, String> {
     match name {
+        "computer" => {
+            let action = required_str(args, "action")?;
+            if action == "computer" {
+                return Err("unknown action: computer".into());
+            }
+            let mut args = args.clone();
+            if let Some(object) = args.as_object_mut() {
+                object.remove("action");
+            }
+            prepare(&action, &args)
+        }
         "left_click" => click_call("click", "left", args, true),
         "middle_click" => click_call("click", "middle", args, true),
         "click" | "double_click" | "triple_click" | "right_click" => {
@@ -326,9 +337,15 @@ pub fn chord(text: &str) -> Result<Vec<String>, String> {
     if text.is_empty() {
         return Err("missing text".into());
     }
-    let parts = if text == "+" {
-        vec!["+".to_string()]
-    } else if text.contains('+') {
+    if text == "+" {
+        return Ok(vec!["+".to_string()]);
+    }
+    // "ctrl++" is Control and one plus. split('+') would see two empty pieces.
+    let (text, trailing_plus) = match text.strip_suffix("++") {
+        Some(head) if !head.is_empty() && !head.ends_with('+') => (head, true),
+        _ => (text, false),
+    };
+    let mut parts: Vec<String> = if text.contains('+') {
         text.split('+')
             .map(|part| {
                 if part.is_empty() {
@@ -341,6 +358,9 @@ pub fn chord(text: &str) -> Result<Vec<String>, String> {
     } else {
         vec![alias_key(text)]
     };
+    if trailing_plus {
+        parts.push("+".to_string());
+    }
     if parts.is_empty() {
         return Err("missing text".into());
     }
@@ -349,9 +369,17 @@ pub fn chord(text: &str) -> Result<Vec<String>, String> {
 
 fn alias_key(raw: &str) -> String {
     match raw.trim().to_ascii_lowercase().as_str() {
-        "super" | "superleft" => "command".into(),
-        "page_up" => "pageup".into(),
-        "page_down" => "pagedown".into(),
+        "super" | "superleft" | "super_l" | "meta_l" => "command".into(),
+        "control_l" | "ctrl_l" => "ctrl".into(),
+        "control_r" | "ctrl_r" => "ctrlright".into(),
+        "alt_l" => "alt".into(),
+        "shift_l" => "shift".into(),
+        "page_up" | "prior" => "pageup".into(),
+        "page_down" | "next" => "pagedown".into(),
+        "period" => "dot".into(),
+        "apostrophe" => "quote".into(),
+        "bracketleft" => "leftbracket".into(),
+        "bracketright" => "rightbracket".into(),
         other => other.to_string(),
     }
 }
@@ -434,7 +462,7 @@ mod tests {
         }
     }
 
-    fn forward<'a>(call: &'a Call) -> (&'a str, &'a Value, &'a [String]) {
+    fn forward(call: &Call) -> (&str, &Value, &[String]) {
         match call {
             Call::Forward {
                 name,
@@ -471,6 +499,36 @@ mod tests {
             keys_of(prepare("key", &json!({ "text": "page_down" })).unwrap()),
             vec!["pagedown"]
         );
+        assert_eq!(
+            keys_of(prepare("key", &json!({ "text": "ctrl++" })).unwrap()),
+            vec!["ctrl", "+"]
+        );
+        assert_eq!(
+            keys_of(prepare("key", &json!({ "text": "period" })).unwrap()),
+            vec!["dot"]
+        );
+        assert_eq!(
+            keys_of(prepare("key", &json!({ "text": "Prior" })).unwrap()),
+            vec!["pageup"]
+        );
+        assert_eq!(
+            keys_of(prepare("key", &json!({ "text": "Super_L" })).unwrap()),
+            vec!["command"]
+        );
+    }
+
+    #[test]
+    fn computer_action_dispatches_to_the_member() {
+        let call = prepare(
+            "computer",
+            &json!({ "action": "left_click", "coordinate": [10, 20] }),
+        )
+        .unwrap();
+        let (name, args, _) = forward(&call);
+        assert_eq!(name, "click");
+        assert_eq!(args["x"], 10);
+        assert_eq!(args["y"], 20);
+        assert!(prepare("computer", &json!({ "action": "computer" })).is_err());
     }
 
     #[test]

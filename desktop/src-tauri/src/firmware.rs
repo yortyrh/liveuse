@@ -242,8 +242,7 @@ async fn fetch_manifest_via_raw(client: &reqwest::Client) -> Result<String, Stri
         "{MANIFEST_URL}?t={}",
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|duration| duration.as_secs())
-            .unwrap_or(0)
+            .map_or(0, |duration| duration.as_secs())
     );
     client
         .get(&url)

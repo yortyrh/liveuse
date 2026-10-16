@@ -16,11 +16,12 @@ macro_rules! key_names {
 
 pub const OPERATION: &str = "short text shown on the on-screen status card while this runs";
 
-pub const WRITE: &str = "Type text as a US-layout keyboard. Only printable ASCII (space through ~); \
-a newline presses Enter and a tab presses Tab. Accents, ñ and emoji are rejected: percent-encode \
-them in URLs (qu%C3%A9), or on macOS type a dead key with hotkey [\"option\", \"e\"] and then the \
-letter. The OS still applies its text settings: on macOS two spaces can become \". \" and words \
-can be autocorrected. Returns once the text has been typed. interval is seconds between characters; 0 is fastest.";
+pub const WRITE: &str = "Type text as a US-layout keyboard. Printable ASCII is typed as keys. \
+A newline presses Enter and a tab presses Tab. Any other character, including accents and emoji, \
+is pasted with Command-V: the plain-text clipboard is replaced for a moment and then restored. \
+An image or file on the clipboard is not restored. The OS still applies its text settings: on macOS \
+two spaces can become \". \" and words can be autocorrected. Returns once the text has been typed. \
+interval is seconds between characters; 0 is fastest. A pasted run is one paste, so interval does not apply inside it.";
 
 pub const PRESS: &str = concat!(
     "Tap one key (presses times), or tap each key in keys one after another. keys is a sequence, \
@@ -122,7 +123,7 @@ pub fn input_schema(properties: &[(&str, &str, &str)], required: &[&str]) -> Val
         }
         props.insert((*name).to_string(), prop);
     }
-    let mut required: Vec<&str> = required.to_vec();
+    let required: Vec<&str> = required.to_vec();
     if properties
         .iter()
         .any(|(name, _, _)| SPACE_KEYS.contains(name))
@@ -131,7 +132,6 @@ pub fn input_schema(properties: &[(&str, &str, &str)], required: &[&str]) -> Val
             "space".into(),
             json!({ "type": "string", "enum": ["pixels", "normalized"], "description": SPACE }),
         );
-        required.push("space");
     }
     json!({
         "type": "object",
@@ -141,9 +141,7 @@ pub fn input_schema(properties: &[(&str, &str, &str)], required: &[&str]) -> Val
 }
 
 pub async fn handle(state: &AppState, body: Value) -> Option<Value> {
-    if body.get("id").is_none() {
-        return None;
-    }
+    body.get("id")?;
     let id = body.get("id").cloned().unwrap_or(Value::Null);
     let method = body.get("method").and_then(Value::as_str).unwrap_or("");
     let result = match method {
@@ -188,9 +186,10 @@ async fn tools_call(state: &AppState, body: &Value) -> Result<Value, (i32, Strin
         .pointer("/params/arguments")
         .cloned()
         .unwrap_or_else(|| json!({}));
+    let shown = action_name(name, &args);
     match execute(state, name, &args).await {
-        Ok(value) if name == "screenshot" || name == "zoom" => Ok(image_content(name, value)),
-        Ok(value) if name == "cursor_position" => Ok(text_content(&cursor_text(&value), false)),
+        Ok(value) if shown == "screenshot" || shown == "zoom" => Ok(image_content(shown, value)),
+        Ok(value) if shown == "cursor_position" => Ok(text_content(&cursor_text(&value), false)),
         Ok(value) => Ok(text_content(
             &phrase(name, &args).unwrap_or_else(|| value.to_string()),
             false,
@@ -206,7 +205,17 @@ fn cursor_text(value: &Value) -> String {
     format!("X={x},Y={y}")
 }
 
+/// `computer` carries the member name in `action`. Every other tool is itself.
+fn action_name<'a>(name: &'a str, args: &'a Value) -> &'a str {
+    if name == "computer" {
+        args.get("action").and_then(Value::as_str).unwrap_or(name)
+    } else {
+        name
+    }
+}
+
 fn phrase(name: &str, args: &Value) -> Option<String> {
+    let name = action_name(name, args);
     match name {
         "left_click" | "right_click" | "middle_click" | "double_click" | "triple_click" => {
             Some("Clicked.".into())
@@ -291,7 +300,7 @@ fn text_content(text: &str, is_error: bool) -> Value {
     })
 }
 
-fn tool_defs() -> Vec<Value> {
+pub(crate) fn tool_defs() -> Vec<Value> {
     let object = input_schema;
     let mut tools = Vec::new();
     let push = |tools: &mut Vec<Value>, name: &str, description: &str, schema: Value| {
@@ -757,6 +766,30 @@ fn tool_defs() -> Vec<Value> {
     );
     push(
         &mut tools,
+        "computer",
+        "One computer action. action is screenshot, zoom, left_click, right_click, middle_click, double_click, triple_click, left_click_drag, mouse_move, left_mouse_down, left_mouse_up, cursor_position, scroll, type, key, hold_key, or wait. The other fields are that action's parameters.",
+        object(
+            &[
+                ("action", "string", "which action to run"),
+                ("coordinate", "array", "[x, y] on the screenshot"),
+                ("start_coordinate", "array", "[x, y] where a drag starts"),
+                (
+                    "text",
+                    "string",
+                    "modifiers, typed text, or a key combination",
+                ),
+                ("region", "array", "[x0, y0, x1, y1] for zoom"),
+                ("scroll_direction", "string", "up, down, left, or right"),
+                ("scroll_amount", "integer", "notches, 0 to 100"),
+                ("repeat", "integer", "1 to 100, for key"),
+                ("duration", "number", "seconds, for hold_key and wait"),
+                ("operation", "string", OPERATION),
+            ],
+            &["action"],
+        ),
+    );
+    push(
+        &mut tools,
         "locate_on_screen",
         "Find a base64 PNG on the screen. Without confidence, an exact match. With confidence, normalized correlation from 0 to 1. If there is no match, the error is ImageNotFoundException.",
         object(
@@ -857,8 +890,7 @@ mod tests {
             assert!(
                 schema["required"]
                     .as_array()
-                    .unwrap()
-                    .contains(&json!("space")),
+                    .is_none_or(|required| !required.contains(&json!("space"))),
                 "{name}"
             );
         }

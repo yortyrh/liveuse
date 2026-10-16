@@ -18,6 +18,7 @@ mod vision;
 #[cfg(test)]
 mod icon_art;
 
+use std::fmt::Write as _;
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
@@ -113,14 +114,12 @@ async fn firmware_offer(
         view.foreign,
         view.path.as_deref(),
     );
-    if force != Some(true) {
-        if let Ok(guard) = state.firmware_cache.lock() {
-            if let Some(hit) = guard.as_ref() {
-                if hit.key == key {
-                    return Ok(hit.offer.clone());
-                }
-            }
-        }
+    if force != Some(true)
+        && let Ok(guard) = state.firmware_cache.lock()
+        && let Some(hit) = guard.as_ref()
+        && hit.key == key
+    {
+        return Ok(hit.offer.clone());
     }
     if state.flashing.load(Ordering::SeqCst) {
         return Ok(firmware::Offer::check_failed(
@@ -186,7 +185,7 @@ fn report(outcome: &str, message: Option<&str>) -> FlashReport {
 
 fn seen_from_running(port: &device::FoundPort, settle: bool) -> Result<firmware::Seen, String> {
     let identity = liveuse_usb(port.manufacturer.as_deref(), port.product.as_deref());
-    if let Some(err) = holders_error(&[port.path.clone()]) {
+    if let Some(err) = holders_error(std::slice::from_ref(&port.path)) {
         return Err(err);
     }
     let version = if settle || identity == Some(true) {
@@ -224,11 +223,11 @@ fn identify(published: firmware::Version, confirmed: bool) -> Result<Identify, S
             firmware::Decision::LeaveBootloader => {
                 let port =
                     port.ok_or_else(|| "Connect the XIAO before writing firmware.".to_string())?;
-                if let Some(err) = holders_error(&[port.path.clone()]) {
+                if let Some(err) = holders_error(std::slice::from_ref(&port.path)) {
                     return Err(err);
                 }
                 if samba::leave_bootloader(&port.path).is_err() {
-                    if let Some(held) = holders_error(&[port.path.clone()]) {
+                    if let Some(held) = holders_error(std::slice::from_ref(&port.path)) {
                         return Err(held);
                     }
                     return Err(firmware::PHYSICAL_STEPS.into());
@@ -464,11 +463,10 @@ fn llm_settings(state: tauri::State<Arc<AppState>>) -> Value {
 }
 
 pub(crate) fn settings_json(state: &AppState) -> Value {
-    let provider = state
-        .llm_provider
-        .read()
-        .map(|value| llm::canonical_provider(&value).unwrap_or_else(|_| value.clone()))
-        .unwrap_or_else(|_| "openai/openai".into());
+    let provider = state.llm_provider.read().map_or_else(
+        |_| "openai/openai".into(),
+        |value| llm::canonical_provider(&value).unwrap_or_else(|_| value.clone()),
+    );
     let key = state
         .llm_api_key
         .read()
@@ -576,12 +574,12 @@ pub(crate) fn write_llm(
     *state.llm_provider.write().map_err(|err| err.to_string())? = provider;
     *state.llm_base_url.write().map_err(|err| err.to_string())? = base;
     *state.llm_model.write().map_err(|err| err.to_string())? = model.to_string();
-    if let Some(key) = api_key {
-        if !key.trim().is_empty() {
-            *state.llm_api_key.write().map_err(|err| err.to_string())? = key.trim().to_string();
-        }
+    if let Some(key) = api_key
+        && !key.trim().is_empty()
+    {
+        *state.llm_api_key.write().map_err(|err| err.to_string())? = key.trim().to_string();
     }
-    save_config(&state)
+    save_config(state)
 }
 
 #[tauri::command]
@@ -820,11 +818,10 @@ fn save_config(state: &AppState) -> Result<(), String> {
             .read()
             .map_err(|err| err.to_string())?
             .clone(),
-        scroll_inverted: state
+        scroll_inverted: *state
             .scroll_inverted
             .read()
-            .map_err(|err| err.to_string())?
-            .clone(),
+            .map_err(|err| err.to_string())?,
     };
     std::fs::write(
         &state.config_path,
@@ -891,29 +888,28 @@ async fn poll_device(state: &Arc<AppState>) {
             if state.device.path().as_deref() == Some(found.path.as_str())
                 && !state.device.is_broken() =>
         {
-            if let Ok(_guard) = state.action_lock.try_lock() {
-                if let Ok(line) = state.device.transact("STATUS".into(), None).await {
-                    if let Some(parsed) = parse_status(&line) {
-                        let mut view = state
-                            .device_info
-                            .lock()
-                            .map(|slot| slot.clone())
-                            .unwrap_or_default();
-                        view.connected = true;
-                        view.path = Some(found.path);
-                        view.uptime_ms = Some(parsed.uptime_ms);
-                        view.firmware = Some(parsed.firmware);
-                        view.error = None;
-                        view.bootloader = false;
-                        view.foreign = false;
-                        state.set_device_view(view);
-                    }
-                }
+            if let Ok(_guard) = state.action_lock.try_lock()
+                && let Ok(line) = state.device.transact("STATUS".into(), None).await
+                && let Some(parsed) = parse_status(&line)
+            {
+                let mut view = state
+                    .device_info
+                    .lock()
+                    .map(|slot| slot.clone())
+                    .unwrap_or_default();
+                view.connected = true;
+                view.path = Some(found.path);
+                view.uptime_ms = Some(parsed.uptime_ms);
+                view.firmware = Some(parsed.firmware);
+                view.error = None;
+                view.bootloader = false;
+                view.foreign = false;
+                state.set_device_view(view);
             }
         }
         Some(found) => {
             let identity = liveuse_usb(found.manufacturer.as_deref(), found.product.as_deref());
-            let holding_foreign = state.device_info.lock().ok().is_some_and(|view| {
+            let holding_foreign = state.device_info.lock().is_ok_and(|view| {
                 view.foreign && view.path.as_deref() == Some(found.path.as_str()) && !view.connected
             });
             if identity == Some(false) || (holding_foreign && identity != Some(true)) {
@@ -975,7 +971,7 @@ fn note_missing_sketch(state: &Arc<AppState>) {
             state.device.close();
             state.stop_server();
         }
-        let same = state.device_info.lock().ok().is_some_and(|view| {
+        let same = state.device_info.lock().is_ok_and(|view| {
             view.bootloader && view.path.as_deref() == Some(hit.path.as_str()) && !view.connected
         });
         if !same {
@@ -993,8 +989,7 @@ fn note_missing_sketch(state: &Arc<AppState>) {
         || state
             .device_info
             .lock()
-            .ok()
-            .is_some_and(|view| view.bootloader || view.connected || view.foreign);
+            .is_ok_and(|view| view.bootloader || view.connected || view.foreign);
     if occupied {
         state.device.close();
         state.stop_server();
@@ -1105,7 +1100,9 @@ fn encode_query(value: &str) -> String {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
                 out.push(byte as char);
             }
-            _ => out.push_str(&format!("%{byte:02X}")),
+            _ => {
+                let _ = write!(out, "%{byte:02X}");
+            }
         }
     }
     out

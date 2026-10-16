@@ -73,8 +73,7 @@ impl Samba {
 
     fn reset(mut self) -> Result<(), SessionError> {
         match self.write_word(AIRCR, SYSRESETREQ) {
-            Ok(()) => Ok(()),
-            Err(SessionError::Lost(_)) => Ok(()),
+            Ok(()) | Err(SessionError::Lost(_)) => Ok(()),
             Err(err) => Err(err),
         }
     }
@@ -215,7 +214,7 @@ mod tests {
 
     #[test]
     fn double_tap_clear_targets_sram_not_application_flash() {
-        assert!(DOUBLE_TAP_ADDR > FLASH_END);
+        const { assert!(DOUBLE_TAP_ADDR > FLASH_END) };
         assert_ne!(DOUBLE_TAP_ADDR, APP_OFFSET);
         assert_eq!(cmd_write_word(DOUBLE_TAP_ADDR, 0), "W20007FFC,00000000#");
     }
