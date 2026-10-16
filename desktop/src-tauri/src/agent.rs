@@ -24,6 +24,7 @@ use crate::remote_perform;
 const PREAMBLE: &str = "\
 You are the LiveUse agent. You control the computer with the tools, like a human operator.
 The screen origin is the top left and Y grows downward. Screenshot, position, and click coordinates share the same grid.
+Coordinates are screenshot pixels, or 0 to 1000 on both axes when a call sets space to normalized. Use the system you natively point in, and set space on every call that takes coordinates. Never rescale a point yourself: label it with the system it came from.
 Look at the screen before acting. After each important action, look again.
 The computer reacts with a delay. After a shortcut or click that opens something, such as command+space for Spotlight, call wait (about 0.5 seconds) before typing into it.
 When you are done, reply in the user's language and do not call more tools.
@@ -87,12 +88,8 @@ async fn run_agent(
         .read()
         .map_err(|err| err.to_string())?
         .clone();
-    let reasoning = crate::llm::parse_reasoning(
-        &state
-            .llm_reasoning
-            .read()
-            .map_err(|err| err.to_string())?,
-    )?;
+    let reasoning =
+        crate::llm::parse_reasoning(&state.llm_reasoning.read().map_err(|err| err.to_string())?)?;
     let model = crate::llm::completion_model(&provider, &model_name, &base, &key)?;
     let tools = computer_tools(Arc::clone(state), target);
     let mut builder = AgentBuilder::new(model)
@@ -483,7 +480,7 @@ fn computer_tools(state: Arc<AppState>, target: PerformTarget) -> Vec<DynamicToo
     let specs = [
         (
             "screenshot",
-            "Capture the screen. width and height are the click grid, origin at the top left.",
+            "Capture the screen. width and height are the pixel click grid, origin at the top left; with space normalized, clicks use 0 to 1000 on both axes instead.",
             schema(&[("operation", "string", "status text")], &[]),
         ),
         ("position", "Current cursor position.", schema(&[], &[])),
@@ -779,8 +776,10 @@ fn screenshot_output(
         finish_tool(state, timing, "screenshot → screenshot had no image", None);
         return Err(ToolExecutionError::other("screenshot had no image"));
     }
-    let caption =
-        format!("Screen {width}×{height}. Coordinates use this grid, origin at the top left.");
+    let caption = format!(
+        "Screen {width}×{height}, origin at the top left. {}",
+        mcp::grid_note(width, height)
+    );
     finish_tool(
         state,
         timing,

@@ -278,6 +278,14 @@ pub async fn execute(state: &AppState, name: &str, args: &Value) -> Result<Value
 }
 
 async fn dispatch(state: &AppState, name: &str, args: &Value) -> Result<Value, ActionError> {
+    let spaced;
+    let args = if args.get("space").is_some() {
+        let grid = shot_grid()?;
+        spaced = computer::apply_space(args, grid.shot_width, grid.shot_height)?;
+        &spaced
+    } else {
+        args
+    };
     match computer::prepare(name, args)? {
         Call::Forward {
             name,

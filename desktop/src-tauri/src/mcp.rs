@@ -51,8 +51,38 @@ pub const MOVE: &str = "Move the cursor dx, dy points from where it is, correcte
 
 pub const CLICK: &str = "Click. With x and y, the cursor first moves there, corrected like move_to. clicks defaults to 1.";
 
-pub const SCREENSHOT: &str = "Capture the primary display. Coordinates in every tool use this image: \
-origin at the top left, Y down. The image stays at logical resolution unless the display exceeds \
+pub const SPACE: &str = "coordinate system of every coordinate in this call. pixels (default): \
+absolute pixels of the full screenshot. normalized: 0 to 1000 on both axes whatever the screen size, \
+[0, 0] is the top left and [1000, 1000] the bottom right. Use the system you natively point in; many \
+vision models point on the 0-1000 grid. Never rescale a point from one system to the other: give it \
+as you located it and label it. Results such as position stay in pixels.";
+
+const SPACE_KEYS: &[&str] = &[
+    "x",
+    "y",
+    "dx",
+    "dy",
+    "coordinate",
+    "start_coordinate",
+    "region",
+];
+
+/// Caption for a full screenshot of `width` x `height`, shared by MCP and the built-in agent.
+pub fn grid_note(width: u64, height: u64) -> String {
+    format!(
+        "Coordinates are pixels of this image, x 0 to {} and y 0 to {}, or 0 to 1000 on both axes \
+         when the call sets space to normalized. Use the system you natively point in; many vision \
+         models point on the 0-1000 grid. Never rescale a point yourself: label it with the system \
+         it came from.",
+        width.saturating_sub(1),
+        height.saturating_sub(1)
+    )
+}
+
+pub const SCREENSHOT: &str = "Capture the primary display. Coordinates in every tool use this image, \
+origin at the top left, Y down: either its pixels, or 0 to 1000 on both axes when the call sets space \
+to normalized. Use the system you natively point in; many vision models point on the 0-1000 grid. \
+The image stays at logical resolution unless the display exceeds \
 2576 px on the long edge or 4784 visual tokens, in which case it is scaled down and clicks are \
 scaled back up. With left, top, width and height, those edges are on this grid and the image is \
 the 1:1 logical crop, so another tool can inspect it.";
@@ -91,6 +121,17 @@ pub fn input_schema(properties: &[(&str, &str, &str)], required: &[&str]) -> Val
             _ => {}
         }
         props.insert((*name).to_string(), prop);
+    }
+    let mut required: Vec<&str> = required.to_vec();
+    if properties
+        .iter()
+        .any(|(name, _, _)| SPACE_KEYS.contains(name))
+    {
+        props.insert(
+            "space".into(),
+            json!({ "type": "string", "enum": ["pixels", "normalized"], "description": SPACE }),
+        );
+        required.push("space");
     }
     json!({
         "type": "object",
@@ -201,8 +242,9 @@ fn image_content(name: &str, value: Value) -> Value {
             .and_then(Value::as_u64)
             .unwrap_or(0);
         format!(
-            "zoom {width}x{height} of the region ({x0}, {y0})-({x1}, {y1}). \
-             Click coordinates stay on the full {shot_w}x{shot_h} screenshot, origin at the top left."
+            "zoom {width}x{height} of the region ({x0}, {y0})-({x1}, {y1}) in pixels. \
+             Click coordinates stay on the full {shot_w}x{shot_h} screenshot, origin at the top left, \
+             or 0 to 1000 of the full screen with space normalized."
         )
     } else if value.get("cropped").and_then(Value::as_bool) == Some(true) {
         let left = value.get("left").and_then(Value::as_u64).unwrap_or(0);
@@ -229,7 +271,8 @@ fn image_content(name: &str, value: Value) -> Value {
         }
     } else {
         format!(
-            "screenshot {width}x{height}. Click coordinates use this same grid, origin at the top left."
+            "screenshot {width}x{height}, origin at the top left, Y down. {}",
+            grid_note(width, height)
         )
     };
     json!({
@@ -697,7 +740,7 @@ fn tool_defs() -> Vec<Value> {
     push(
         &mut tools,
         "zoom",
-        "Magnify a region of the full screenshot. region is [x0, y0, x1, y1] on that screenshot. The image is the physical pixels of that area, scaled to fit the screenshot size. Later clicks stay on the full screenshot grid.",
+        "Magnify a region of the full screenshot. region is [x0, y0, x1, y1] on that screenshot. The image is the physical pixels of that area, scaled to fit the screenshot size. Later clicks stay on the full screenshot grid. Zoom in before clicking a small target whose position is uncertain.",
         object(
             &[
                 ("region", "array", "[x0, y0, x1, y1] on the full screenshot"),
@@ -782,4 +825,50 @@ fn tool_defs() -> Vec<Value> {
         ),
     );
     tools
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tool(name: &str) -> Value {
+        tool_defs()
+            .into_iter()
+            .find(|tool| tool["name"] == name)
+            .expect("tool exists")
+    }
+
+    #[test]
+    fn space_is_offered_only_where_coordinates_are() {
+        for name in [
+            "left_click",
+            "click",
+            "move",
+            "zoom",
+            "scroll",
+            "left_click_drag",
+        ] {
+            let schema = &tool(name)["inputSchema"];
+            assert_eq!(
+                schema["properties"]["space"]["enum"],
+                json!(["pixels", "normalized"]),
+                "{name}"
+            );
+            assert!(
+                schema["required"]
+                    .as_array()
+                    .unwrap()
+                    .contains(&json!("space")),
+                "{name}"
+            );
+        }
+        for name in ["write", "hotkey", "wait", "size", "screenshot"] {
+            assert!(
+                tool(name)["inputSchema"]["properties"]
+                    .get("space")
+                    .is_none(),
+                "{name}"
+            );
+        }
+    }
 }

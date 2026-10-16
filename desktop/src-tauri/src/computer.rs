@@ -124,6 +124,97 @@ pub fn prepare(name: &str, args: &Value) -> Result<Call, String> {
     }
 }
 
+pub const NORMALIZED_SCALE: i64 = 1000;
+
+/// With `"space": "normalized"`, rewrites 0-1000 coordinates onto the `width` x `height`
+/// screenshot grid. Points stay inside the image; region edges and sizes may reach its far edge.
+pub fn apply_space(args: &Value, width: u32, height: u32) -> Result<Value, String> {
+    let mut out = args.clone();
+    let Some(object) = out.as_object_mut() else {
+        return Ok(out);
+    };
+    match object.remove("space") {
+        None | Some(Value::Null) => return Ok(out),
+        Some(Value::String(space)) if space == "pixels" => return Ok(out),
+        Some(Value::String(space)) if space == "normalized" => {}
+        Some(_) => return Err("space must be pixels or normalized".into()),
+    }
+    let (w, h) = (width as i64, height as i64);
+    for key in ["coordinate", "start_coordinate"] {
+        if let Some(value) = object.get(key).filter(|value| !value.is_null()) {
+            let pair = value
+                .as_array()
+                .filter(|list| list.len() == 2)
+                .ok_or_else(|| format!("{key} must be [x, y]"))?;
+            let mapped = json!([point(&pair[0], w)?, point(&pair[1], h)?]);
+            object.insert(key.into(), mapped);
+        }
+    }
+    let fields: [(&str, i64, Mapper); 8] = [
+        ("x", w, point),
+        ("y", h, point),
+        ("dx", w, delta),
+        ("dy", h, delta),
+        ("left", w, edge),
+        ("top", h, edge),
+        ("width", w, edge),
+        ("height", h, edge),
+    ];
+    for (key, dim, map) in fields {
+        if let Some(value) = object.get(key).filter(|value| !value.is_null()) {
+            let mapped = map(value, dim)?;
+            object.insert(key.into(), mapped);
+        }
+    }
+    match object.get_mut("region") {
+        Some(Value::Array(corners)) => {
+            if corners.len() != 4 {
+                return Err("region must be [x0, y0, x1, y1]".into());
+            }
+            for (index, corner) in corners.iter_mut().enumerate() {
+                *corner = edge(corner, if index % 2 == 0 { w } else { h })?;
+            }
+        }
+        Some(Value::Object(bounds)) => {
+            for (key, dim) in [("left", w), ("top", h), ("width", w), ("height", h)] {
+                if let Some(value) = bounds.get(key) {
+                    let mapped = edge(value, dim)?;
+                    bounds.insert(key.into(), mapped);
+                }
+            }
+        }
+        _ => {}
+    }
+    Ok(out)
+}
+
+type Mapper = fn(&Value, i64) -> Result<Value, String>;
+
+fn point(value: &Value, dim: i64) -> Result<Value, String> {
+    let n = scaled(value, 0)?;
+    Ok(json!((n * dim / NORMALIZED_SCALE).min(dim - 1).max(0)))
+}
+
+fn edge(value: &Value, dim: i64) -> Result<Value, String> {
+    Ok(json!(scaled(value, 0)? * dim / NORMALIZED_SCALE))
+}
+
+fn delta(value: &Value, dim: i64) -> Result<Value, String> {
+    Ok(json!(
+        scaled(value, -NORMALIZED_SCALE)? * dim / NORMALIZED_SCALE
+    ))
+}
+
+fn scaled(value: &Value, min: i64) -> Result<i64, String> {
+    let n = as_i64(value)?;
+    if !(min..=NORMALIZED_SCALE).contains(&n) {
+        return Err(format!(
+            "normalized coordinates must be {min} to {NORMALIZED_SCALE}, got {n}"
+        ));
+    }
+    Ok(n)
+}
+
 fn pass(name: &str, args: &Value) -> Call {
     Call::Forward {
         name: name.into(),
@@ -415,6 +506,82 @@ mod tests {
         assert_eq!(name, "move_to");
         assert_eq!(args["x"], 4);
         assert_eq!(args["y"], 5);
+    }
+
+    #[test]
+    fn normalized_points_land_on_the_screenshot_grid() {
+        let args = json!({
+            "space": "normalized",
+            "coordinate": [500, 500],
+            "start_coordinate": [0, 1000],
+            "x": 1000,
+            "y": 250,
+            "button": "left"
+        });
+        let out = apply_space(&args, 1792, 1120).unwrap();
+        assert_eq!(out["coordinate"], json!([896, 560]));
+        assert_eq!(out["start_coordinate"], json!([0, 1119]));
+        assert_eq!(out["x"], 1791);
+        assert_eq!(out["y"], 280);
+        assert_eq!(out["button"], "left");
+        assert!(out.get("space").is_none());
+    }
+
+    #[test]
+    fn normalized_regions_and_deltas_scale_per_axis() {
+        let zoom = apply_space(
+            &json!({ "space": "normalized", "region": [250, 500, 750, 1000] }),
+            1792,
+            1120,
+        )
+        .unwrap();
+        assert_eq!(zoom["region"], json!([448, 560, 1344, 1120]));
+        let crop = apply_space(
+            &json!({ "space": "normalized", "left": 500, "top": 0, "width": 500, "height": 1000 }),
+            1792,
+            1120,
+        )
+        .unwrap();
+        assert_eq!(
+            [&crop["left"], &crop["top"], &crop["width"], &crop["height"]],
+            [&json!(896), &json!(0), &json!(896), &json!(1120)]
+        );
+        let found = apply_space(
+            &json!({ "space": "normalized", "region": { "left": 0, "top": 500, "width": 1000, "height": 500 } }),
+            1792,
+            1120,
+        )
+        .unwrap();
+        assert_eq!(
+            found["region"],
+            json!({ "left": 0, "top": 560, "width": 1792, "height": 560 })
+        );
+        let moved = apply_space(
+            &json!({ "space": "normalized", "dx": -500, "dy": 100 }),
+            1792,
+            1120,
+        )
+        .unwrap();
+        assert_eq!((&moved["dx"], &moved["dy"]), (&json!(-896), &json!(112)));
+    }
+
+    #[test]
+    fn pixels_pass_through_and_bad_spaces_are_refused() {
+        let args = json!({ "coordinate": [10, 20] });
+        assert_eq!(apply_space(&args, 1792, 1120).unwrap(), args);
+        let pixels = apply_space(&json!({ "space": "pixels", "x": 1500 }), 1792, 1120).unwrap();
+        assert_eq!(pixels, json!({ "x": 1500 }));
+        assert!(apply_space(&json!({ "space": "inches", "x": 1 }), 1792, 1120).is_err());
+        assert!(apply_space(&json!({ "space": "normalized", "x": 1001 }), 1792, 1120).is_err());
+        assert!(apply_space(&json!({ "space": "normalized", "x": -1 }), 1792, 1120).is_err());
+        assert!(
+            apply_space(
+                &json!({ "space": "normalized", "coordinate": [1, 2, 3] }),
+                1792,
+                1120
+            )
+            .is_err()
+        );
     }
 
     #[test]
