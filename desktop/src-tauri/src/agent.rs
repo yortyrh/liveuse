@@ -2,6 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use futures::StreamExt;
 use rig::agent::{
@@ -23,7 +24,9 @@ use crate::remote_perform;
 const PREAMBLE: &str = "\
 You are the LiveUse agent. You control the computer with the tools, like a human operator.
 The screen origin is the top left and Y grows downward. Screenshot, position, and click coordinates share the same grid.
-Look at the screen before acting. After each important action, look again. When you are done, reply in the user's language and do not call more tools.
+Look at the screen before acting. After each important action, look again.
+The computer reacts with a delay. After a shortcut or click that opens something, such as command+space for Spotlight, call wait (about 0.5 seconds) before typing into it.
+When you are done, reply in the user's language and do not call more tools.
 If a tool returns aborted, stop immediately.";
 
 #[derive(Deserialize)]
@@ -101,14 +104,14 @@ async fn run_agent(
         })
         .stream();
     let mut segment: Option<TextSegment> = None;
+    let mut thinking: Option<Thinking> = None;
+    begin_thinking(state, &mut thinking);
     loop {
         let item = tokio::select! {
             biased;
             item = stream.next() => item,
             () = crate::wait_abort(&state.abort) => {
-                if let Some(current) = segment.take() {
-                    current.finish(state);
-                }
+                finish_open(state, &mut segment, &mut thinking);
                 return finish_error(state, "aborted");
             }
         };
@@ -116,9 +119,7 @@ async fn run_agent(
             break;
         };
         if state.abort.load(Ordering::SeqCst) {
-            if let Some(current) = segment.take() {
-                current.finish(state);
-            }
+            finish_open(state, &mut segment, &mut thinking);
             return finish_error(state, "aborted");
         }
         match item {
@@ -127,47 +128,65 @@ async fn run_agent(
                     kind: PartKind::Text,
                     ..
                 } => {
+                    end_thinking(state, &mut thinking);
                     if let Some(current) = segment.as_mut() {
                         current.saw_delta = false;
                     }
                 }
+                StreamEvent::Start {
+                    kind: PartKind::Reasoning,
+                    ..
+                }
+                | StreamEvent::Reasoning { .. } => {
+                    note_reasoning(state, &mut thinking);
+                }
                 StreamEvent::Text { text, .. } => {
+                    end_thinking(state, &mut thinking);
                     open_segment(&mut segment).push_delta(state, &text);
                 }
                 StreamEvent::End {
                     content: AssistantContent::Text(text),
                     ..
                 } => {
+                    end_thinking(state, &mut thinking);
                     open_segment(&mut segment).push_settled(state, &text.text);
+                }
+                StreamEvent::End {
+                    content: AssistantContent::Reasoning(_),
+                    ..
+                } => {
+                    note_reasoning(state, &mut thinking);
                 }
                 _ => {}
             },
             Ok(MultiTurnStreamItem::ToolCall { .. }) => {
+                end_thinking(state, &mut thinking);
                 if let Some(current) = segment.take() {
                     current.finish(state);
                 }
+            }
+            Ok(MultiTurnStreamItem::ToolResult { .. }) => {
+                begin_thinking(state, &mut thinking);
             }
             Ok(MultiTurnStreamItem::ModelTurnRetried { .. }) => {
                 if let Some(current) = segment.take() {
                     current.reset(state);
                 }
+                dismiss_thinking(state, &mut thinking);
+                begin_thinking(state, &mut thinking);
             }
             Ok(MultiTurnStreamItem::FinalResponse(response)) => {
-                settle_final(state, segment.take(), &response.output());
+                settle_final(state, segment.take(), &mut thinking, &response.output());
                 return Ok(());
             }
             Ok(_) => {}
             Err(err) => {
-                if let Some(current) = segment.take() {
-                    current.finish(state);
-                }
+                finish_open(state, &mut segment, &mut thinking);
                 return finish_error(state, &err.to_string());
             }
         }
     }
-    if let Some(current) = segment.take() {
-        current.finish(state);
-    }
+    finish_open(state, &mut segment, &mut thinking);
     Ok(())
 }
 
@@ -175,6 +194,125 @@ struct TextSegment {
     id: String,
     text: String,
     saw_delta: bool,
+    timing: Timed,
+}
+
+struct Thinking {
+    timing: Timed,
+    reasoning: bool,
+}
+
+struct Timed {
+    id: String,
+    started: Instant,
+    started_ms: u64,
+}
+
+impl Timed {
+    fn start() -> Self {
+        Self {
+            id: new_id(),
+            started: Instant::now(),
+            started_ms: unix_ms(),
+        }
+    }
+
+    fn elapsed_ms(&self) -> u64 {
+        u64::try_from(self.started.elapsed().as_millis()).unwrap_or(u64::MAX)
+    }
+}
+
+fn begin_thinking(state: &AppState, thinking: &mut Option<Thinking>) {
+    if thinking.is_some() {
+        return;
+    }
+    let timing = Timed::start();
+    emit_activity(
+        state,
+        &timing.id,
+        "reasoning",
+        "Thinking",
+        None,
+        true,
+        Some(timing.started_ms),
+        None,
+        false,
+    );
+    *thinking = Some(Thinking {
+        timing,
+        reasoning: false,
+    });
+}
+
+fn note_reasoning(state: &AppState, thinking: &mut Option<Thinking>) {
+    let Some(current) = thinking.as_mut() else {
+        return;
+    };
+    if current.reasoning {
+        return;
+    }
+    current.reasoning = true;
+    emit_activity(
+        state,
+        &current.timing.id,
+        "reasoning",
+        "Reasoning",
+        None,
+        true,
+        Some(current.timing.started_ms),
+        None,
+        false,
+    );
+}
+
+fn end_thinking(state: &AppState, thinking: &mut Option<Thinking>) {
+    let Some(current) = thinking.take() else {
+        return;
+    };
+    let label = if current.reasoning {
+        "Reasoning"
+    } else {
+        "Thinking"
+    };
+    emit_activity(
+        state,
+        &current.timing.id,
+        "reasoning",
+        label,
+        None,
+        false,
+        Some(current.timing.started_ms),
+        Some(current.timing.elapsed_ms()),
+        false,
+    );
+}
+
+fn dismiss_thinking(state: &AppState, thinking: &mut Option<Thinking>) {
+    let Some(current) = thinking.take() else {
+        return;
+    };
+    emit_activity(
+        state,
+        &current.timing.id,
+        "reasoning",
+        "",
+        None,
+        false,
+        None,
+        None,
+        true,
+    );
+}
+
+fn finish_open(
+    state: &AppState,
+    segment: &mut Option<TextSegment>,
+    thinking: &mut Option<Thinking>,
+) {
+    if let Some(current) = segment.take() {
+        current.finish(state);
+    }
+    end_thinking(state, thinking);
 }
 
 fn open_segment(segment: &mut Option<TextSegment>) -> &mut TextSegment {
@@ -182,6 +320,7 @@ fn open_segment(segment: &mut Option<TextSegment>) -> &mut TextSegment {
         id: new_id(),
         text: String::new(),
         saw_delta: false,
+        timing: Timed::start(),
     })
 }
 
@@ -189,7 +328,15 @@ impl TextSegment {
     fn push_delta(&mut self, state: &AppState, fragment: &str) {
         self.saw_delta = true;
         self.text.push_str(fragment);
-        emit_delta(state, &self.id, &self.text, false, false);
+        emit_delta(
+            state,
+            &self.id,
+            &self.text,
+            false,
+            false,
+            Some(self.timing.started_ms),
+            None,
+        );
     }
 
     fn push_settled(&mut self, state: &AppState, text: &str) {
@@ -197,7 +344,7 @@ impl TextSegment {
             return;
         }
         self.text.push_str(text);
-        emit_delta(state, &self.id, &self.text, false, false);
+        emit_delta(state, &self.id, &self.text, false, false, None, None);
     }
 
     fn finish(mut self, state: &AppState) {
@@ -207,17 +354,28 @@ impl TextSegment {
             return;
         }
         self.text = text.to_string();
-        emit_delta(state, &self.id, &self.text, true, false);
+        let (started, ms) = if self.saw_delta {
+            (Some(self.timing.started_ms), Some(self.timing.elapsed_ms()))
+        } else {
+            (None, None)
+        };
+        emit_delta(state, &self.id, &self.text, true, false, started, ms);
     }
 
     fn reset(self, state: &AppState) {
-        emit_delta(state, &self.id, "", true, true);
+        emit_delta(state, &self.id, "", true, true, None, None);
     }
 }
 
-fn settle_final(state: &AppState, segment: Option<TextSegment>, final_text: &str) {
+fn settle_final(
+    state: &AppState,
+    segment: Option<TextSegment>,
+    thinking: &mut Option<Thinking>,
+    final_text: &str,
+) {
     let final_text = final_text.trim();
     let Some(mut segment) = segment else {
+        end_thinking(state, thinking);
         emit_line(
             state,
             "assistant",
@@ -230,6 +388,7 @@ fn settle_final(state: &AppState, segment: Option<TextSegment>, final_text: &str
         );
         return;
     };
+    end_thinking(state, thinking);
     if segment.text.trim().is_empty() {
         if final_text.is_empty() {
             segment.reset(state);
@@ -237,7 +396,6 @@ fn settle_final(state: &AppState, segment: Option<TextSegment>, final_text: &str
             return;
         }
         segment.text = final_text.to_string();
-        segment.saw_delta = true;
         segment.finish(state);
         return;
     }
@@ -465,6 +623,17 @@ fn computer_tools(state: Arc<AppState>, target: PerformTarget) -> Vec<DynamicToo
             ),
         ),
         (
+            "wait",
+            mcp::WAIT,
+            schema(
+                &[
+                    ("duration", "number", "seconds, 0 to 300"),
+                    ("operation", "string", "status"),
+                ],
+                &["duration"],
+            ),
+        ),
+        (
             "key_down",
             "Hold a key.",
             schema(
@@ -520,29 +689,76 @@ async fn call_tool(
     if state.abort.load(Ordering::SeqCst) {
         return Err(ToolExecutionError::cancelled("aborted"));
     }
-    let value = match target {
-        PerformTarget::Local => execute(state, name, &args)
+    let timing = Timed::start();
+    let label = describe(name, &args);
+    emit_activity(
+        state,
+        &timing.id,
+        "tool",
+        &label,
+        None,
+        true,
+        Some(timing.started_ms),
+        None,
+        false,
+    );
+    let outcome = match target {
+        PerformTarget::Local => execute(state, name, &local_args(name, &args))
             .await
-            .map_err(|err| tool_error(&err.message()))?,
+            .map_err(|err| err.message()),
         PerformTarget::Remote { url, token } => {
-            { remote_perform(url, token, name, &args, &state.abort) }
-                .await
-                .map_err(|err| tool_error(&err))?
+            remote_perform(url, token, name, &args, &state.abort).await
+        }
+    };
+    let value = match outcome {
+        Ok(value) => value,
+        Err(err) => {
+            finish_tool(state, &timing, &format!("{label} → {err}"), None);
+            return Err(tool_error(&err));
         }
     };
     if state.abort.load(Ordering::SeqCst) {
+        finish_tool(state, &timing, &format!("{label} → aborted"), None);
         return Err(ToolExecutionError::cancelled("aborted"));
     }
     if name == "screenshot" {
-        return screenshot_output(state, value);
+        return screenshot_output(state, &timing, value);
     }
-    let text = describe(name, &args);
     let shown = compact_result(&value);
-    emit_line(state, "tool", &format!("{text} → {shown}"), None);
+    finish_tool(state, &timing, &format!("{label} → {shown}"), None);
     Ok(ToolOutput::json(strip_images(value)))
 }
 
-fn screenshot_output(state: &AppState, value: Value) -> Result<ToolOutput, ToolExecutionError> {
+/// The model only receives the JPEG, so a local screenshot skips the PNG.
+fn local_args(name: &str, args: &Value) -> Value {
+    let mut args = args.clone();
+    if name == "screenshot" {
+        if let Some(object) = args.as_object_mut() {
+            object.insert("format".into(), json!("jpeg"));
+        }
+    }
+    args
+}
+
+fn finish_tool(state: &AppState, timing: &Timed, text: &str, image: Option<String>) {
+    emit_activity(
+        state,
+        &timing.id,
+        "tool",
+        text,
+        image,
+        false,
+        Some(timing.started_ms),
+        Some(timing.elapsed_ms()),
+        false,
+    );
+}
+
+fn screenshot_output(
+    state: &AppState,
+    timing: &Timed,
+    value: Value,
+) -> Result<ToolOutput, ToolExecutionError> {
     let width = value.get("width").and_then(Value::as_u64).unwrap_or(0);
     let height = value.get("height").and_then(Value::as_u64).unwrap_or(0);
     let jpeg = value
@@ -551,13 +767,14 @@ fn screenshot_output(state: &AppState, value: Value) -> Result<ToolOutput, ToolE
         .unwrap_or("")
         .to_string();
     if jpeg.is_empty() {
+        finish_tool(state, timing, "screenshot → screenshot had no image", None);
         return Err(ToolExecutionError::other("screenshot had no image"));
     }
     let caption =
         format!("Screen {width}×{height}. Coordinates use this grid, origin at the top left.");
-    emit_line(
+    finish_tool(
         state,
-        "tool",
+        timing,
         &caption,
         Some(format!("data:image/jpeg;base64,{jpeg}")),
     );
@@ -628,18 +845,54 @@ fn new_id() -> String {
 }
 
 fn emit_line(state: &AppState, role: &str, text: &str, image: Option<String>) {
+    emit_activity(
+        state,
+        &new_id(),
+        role,
+        text,
+        image,
+        false,
+        None,
+        None,
+        false,
+    );
+}
+
+fn emit_activity(
+    state: &AppState,
+    id: &str,
+    role: &str,
+    text: &str,
+    image: Option<String>,
+    pending: bool,
+    started: Option<u64>,
+    ms: Option<u64>,
+    reset: bool,
+) {
     let _ = state.app.emit(
         "agent-line",
         json!({
-            "id": new_id(),
+            "id": id,
             "role": role,
             "text": text,
             "image": image,
+            "pending": pending,
+            "started": started,
+            "ms": ms,
+            "reset": reset,
         }),
     );
 }
 
-fn emit_delta(state: &AppState, id: &str, text: &str, done: bool, reset: bool) {
+fn emit_delta(
+    state: &AppState,
+    id: &str,
+    text: &str,
+    done: bool,
+    reset: bool,
+    started: Option<u64>,
+    ms: Option<u64>,
+) {
     let _ = state.app.emit(
         "agent-delta",
         json!({
@@ -647,6 +900,15 @@ fn emit_delta(state: &AppState, id: &str, text: &str, done: bool, reset: bool) {
             "text": text,
             "done": done,
             "reset": reset,
+            "started": started,
+            "ms": ms,
         }),
     );
+}
+
+fn unix_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| u64::try_from(duration.as_millis()).unwrap_or(u64::MAX))
+        .unwrap_or(0)
 }

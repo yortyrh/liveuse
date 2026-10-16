@@ -38,15 +38,62 @@ impl Frame {
     pub fn grid(&self) -> Grid {
         Grid::from_logical(self.logical_width, self.logical_height)
     }
+}
 
-    pub fn logical_image(&self) -> RgbaImage {
-        resize_image(&self.device, self.logical_width, self.logical_height)
-    }
+/// The primary display at its logical size. macOS renders it at that size, so no resize runs.
+#[cfg(target_os = "macos")]
+pub fn capture_logical() -> Result<RgbaImage, String> {
+    use objc2_core_graphics::{CGDisplayBounds, CGMainDisplayID};
+    let bounds = CGDisplayBounds(CGMainDisplayID());
+    let width = bounds.size.width as u32;
+    let height = bounds.size.height as u32;
+    let image = capture_nominal(bounds)?;
+    Ok(resize_image(&image, width, height))
+}
 
-    pub fn shot_image(&self) -> RgbaImage {
-        let grid = self.grid();
-        resize_image(&self.device, grid.shot_width, grid.shot_height)
+#[cfg(not(target_os = "macos"))]
+pub fn capture_logical() -> Result<RgbaImage, String> {
+    let frame = capture_frame()?;
+    Ok(resize_image(
+        &frame.device,
+        frame.logical_width,
+        frame.logical_height,
+    ))
+}
+
+#[cfg(target_os = "macos")]
+#[allow(deprecated)]
+fn capture_nominal(bounds: objc2_core_foundation::CGRect) -> Result<RgbaImage, String> {
+    use objc2_core_graphics::{
+        CGDataProvider, CGImage, CGWindowImageOption, CGWindowListCreateImage, CGWindowListOption,
+    };
+    let image = CGWindowListCreateImage(
+        bounds,
+        CGWindowListOption::OptionAll,
+        0,
+        CGWindowImageOption::NominalResolution,
+    )
+    .ok_or("could not capture the screen")?;
+    let width = CGImage::width(Some(&image));
+    let height = CGImage::height(Some(&image));
+    let stride = CGImage::bytes_per_row(Some(&image));
+    let provider = CGImage::data_provider(Some(&image));
+    let data = CGDataProvider::data(provider.as_deref())
+        .ok_or("could not read the screen capture")?
+        .to_vec();
+    let row = width * 4;
+    if width == 0 || height == 0 || stride < row || data.len() < stride * height {
+        return Err("the screen capture is empty".into());
     }
+    let mut pixels = Vec::with_capacity(row * height);
+    for line in data.chunks_exact(stride).take(height) {
+        pixels.extend_from_slice(&line[..row]);
+    }
+    for bgra in pixels.chunks_exact_mut(4) {
+        bgra.swap(0, 2);
+    }
+    RgbaImage::from_raw(width as u32, height as u32, pixels)
+        .ok_or_else(|| "the screen capture has the wrong size".into())
 }
 
 pub fn capture_frame() -> Result<Frame, String> {
@@ -183,7 +230,34 @@ pub fn resize_image(image: &RgbaImage, width: u32, height: u32) -> RgbaImage {
     if image.width() == width && image.height() == height {
         return image.clone();
     }
+    if image.width() == width * 2 && image.height() == height * 2 {
+        return halve(image);
+    }
     image::imageops::resize(image, width, height, image::imageops::FilterType::Triangle)
+}
+
+/// Each output pixel is the mean of a 2x2 block, rounded to nearest.
+fn halve(image: &RgbaImage) -> RgbaImage {
+    let width = (image.width() / 2) as usize;
+    let height = (image.height() / 2) as usize;
+    let stride = image.width() as usize * 4;
+    let src = image.as_raw();
+    let mut out = vec![0u8; width * height * 4];
+    for (y, dst) in out.chunks_exact_mut(width * 4).enumerate() {
+        let top = &src[2 * y * stride..][..stride];
+        let bottom = &src[(2 * y + 1) * stride..][..stride];
+        for ((pixel, a), b) in dst
+            .chunks_exact_mut(4)
+            .zip(top.chunks_exact(8))
+            .zip(bottom.chunks_exact(8))
+        {
+            for c in 0..4 {
+                let sum = a[c] as u16 + a[c + 4] as u16 + b[c] as u16 + b[c + 4] as u16;
+                pixel[c] = ((sum + 2) / 4) as u8;
+            }
+        }
+    }
+    RgbaImage::from_raw(width as u32, height as u32, out).expect("halved buffer matches its size")
 }
 
 pub fn fit_inside(src_w: u32, src_h: u32, box_w: u32, box_h: u32) -> (u32, u32) {
@@ -331,6 +405,20 @@ mod tests {
         let shot = resize_image(&device, grid.shot_width, grid.shot_height);
         let shot_has_both = has_pure(&shot, [255, 0, 0]) && has_pure(&shot, [0, 255, 0]);
         assert!(!shot_has_both);
+    }
+
+    #[test]
+    fn halving_averages_each_two_by_two_block() {
+        let mut image = RgbaImage::from_pixel(4, 2, Rgba([0, 0, 0, 255]));
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+        image.put_pixel(1, 1, Rgba([255, 0, 0, 255]));
+        image.put_pixel(2, 0, Rgba([10, 20, 30, 255]));
+        image.put_pixel(3, 0, Rgba([10, 20, 30, 255]));
+        image.put_pixel(2, 1, Rgba([10, 20, 30, 255]));
+        image.put_pixel(3, 1, Rgba([11, 21, 31, 255]));
+        let half = resize_image(&image, 2, 1);
+        assert_eq!(half.get_pixel(0, 0).0, [128, 0, 0, 255]);
+        assert_eq!(half.get_pixel(1, 0).0, [10, 20, 30, 255]);
     }
 
     fn has_pure(image: &RgbaImage, rgb: [u8; 3]) -> bool {

@@ -597,9 +597,11 @@ async fn preview_frame(
     target: PerformTarget,
 ) -> Result<String, String> {
     let value = match target {
-        PerformTarget::Local => actions::execute(&state, "screenshot", &json!({}))
-            .await
-            .map_err(|err| err.message())?,
+        PerformTarget::Local => {
+            actions::execute(&state, "screenshot", &json!({ "format": "jpeg" }))
+                .await
+                .map_err(|err| err.message())?
+        }
         PerformTarget::Remote { url, token } => {
             remote_perform(&url, &token, "screenshot", &json!({}), &state.abort).await?
         }

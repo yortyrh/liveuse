@@ -2422,6 +2422,8 @@ dependencies = [
  "futures",
  "if-addrs",
  "image",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
  "rand 0.10.3",
  "reqwest 0.13.5",
  "rig",

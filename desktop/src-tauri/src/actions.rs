@@ -664,18 +664,27 @@ fn capture(state: &AppState) -> Result<screen::Frame, ActionError> {
     screen::capture_frame().map_err(ActionError::Bad)
 }
 
+fn capture_logical(state: &AppState) -> Result<RgbaImage, ActionError> {
+    protect_overlay(state);
+    screen::capture_logical().map_err(ActionError::Bad)
+}
+
 fn screenshot_action(state: &AppState, args: &Value) -> Result<Value, ActionError> {
-    let frame = capture(state)?;
-    let grid = frame.grid();
+    let with_png = args.get("format").and_then(Value::as_str) != Some("jpeg");
+    let logical = capture_logical(state)?;
+    let grid = screen::Grid::from_logical(logical.width(), logical.height());
     let Some(bounds) = shot_region(args, &grid)? else {
-        let image = frame.shot_image();
-        let mut value = encoded_json(&image)?;
+        let image = if (grid.shot_width, grid.shot_height) == logical.dimensions() {
+            logical
+        } else {
+            screen::resize_image(&logical, grid.shot_width, grid.shot_height)
+        };
+        let mut value = encoded_json(&image, with_png)?;
         value["left"] = json!(0);
         value["top"] = json!(0);
         value["cropped"] = json!(false);
         return Ok(value);
     };
-    let logical = frame.logical_image();
     let (left, width) =
         screen::map_span(bounds.left, bounds.width, grid.shot_width, logical.width());
     let (top, height) = screen::map_span(
@@ -693,7 +702,7 @@ fn screenshot_action(state: &AppState, args: &Value) -> Result<Value, ActionErro
             height,
         }),
     )?;
-    let mut value = encoded_json(&image)?;
+    let mut value = encoded_json(&image, with_png)?;
     value["left"] = json!(bounds.left);
     value["top"] = json!(bounds.top);
     value["grid_width"] = json!(bounds.width);
@@ -720,7 +729,7 @@ fn zoom_action(state: &AppState, x0: i32, y0: i32, x1: i32, y1: i32) -> Result<V
     let frame = capture(state)?;
     let grid = frame.grid();
     let image = screen::zoom_image(&frame.device, grid, x0, y0, x1, y1)?;
-    let mut value = encoded_json(&image)?;
+    let mut value = encoded_json(&image, true)?;
     value["x0"] = json!(x0);
     value["y0"] = json!(y0);
     value["x1"] = json!(x1);
@@ -1005,7 +1014,7 @@ async fn sleep_abortable(state: &AppState, total: Duration) -> Result<(), Action
 }
 
 async fn grab(state: &AppState) -> Result<RgbaImage, ActionError> {
-    Ok(capture(state)?.logical_image())
+    capture_logical(state)
 }
 
 fn crop_region(image: &RgbaImage, bounds: Option<Bounds>) -> Result<RgbaImage, ActionError> {
@@ -1034,15 +1043,18 @@ async fn find_boxes(state: &AppState, args: &Value) -> Result<Vec<Bounds>, Actio
     vision::locate(&image, &needle, region(args)?, grayscale, confidence).map_err(ActionError::Bad)
 }
 
-fn encoded_json(image: &RgbaImage) -> Result<Value, ActionError> {
-    let png = encode_png(image)?;
+fn encoded_json(image: &RgbaImage, with_png: bool) -> Result<Value, ActionError> {
     let jpeg = encode_jpeg(image)?;
-    Ok(json!({
+    let mut value = json!({
         "width": image.width(),
         "height": image.height(),
-        "png_base64": base64::engine::general_purpose::STANDARD.encode(png),
         "jpeg_base64": base64::engine::general_purpose::STANDARD.encode(jpeg),
-    }))
+    });
+    if with_png {
+        value["png_base64"] =
+            json!(base64::engine::general_purpose::STANDARD.encode(encode_png(image)?));
+    }
+    Ok(value)
 }
 
 pub fn encode_png(image: &RgbaImage) -> Result<Vec<u8>, ActionError> {

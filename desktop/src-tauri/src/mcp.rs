@@ -32,9 +32,16 @@ pub const HOTKEY: &str = concat!(
     "Shortcut: hold the keys in order, then release them in reverse. macOS examples: \
      [\"command\", \"space\"] Spotlight, [\"command\", \"t\"] new tab, [\"command\", \"l\"] address bar, \
      [\"command\", \",\"] settings, [\"command\", \"shift\", \"/\"] Help menu, [\"command\", \"=\"] zoom in. \
-     A shifted symbol such as ? or + adds Shift by itself. An uppercase letter does not: list shift. ",
+     A shifted symbol such as ? or + adds Shift by itself. An uppercase letter does not: list shift. \
+     A shortcut that opens something (Spotlight, a window, a menu, a tab) takes a moment to appear: \
+     call wait with about 0.5 before typing into it. ",
     key_names!()
 );
+
+pub const WAIT: &str = "Pause for duration seconds, at most 300; fractions such as 0.3 work. \
+The OS and apps react with a delay: after a shortcut or click that opens Spotlight, an app, a window, \
+a menu or a page, wait about 0.3 to 1 second before typing or clicking into it, longer for an app \
+launch or a page load. Keys sent too early are lost.";
 
 pub const MOVE_TO: &str = "Move the cursor to an absolute point on the size grid. The position is \
 checked and corrected until the cursor is within about 1 point of it. An omitted axis keeps its current value. \
@@ -650,7 +657,7 @@ fn tool_defs() -> Vec<Value> {
     push(
         &mut tools,
         "wait",
-        "Pause for duration seconds, at most 300.",
+        WAIT,
         object(
             &[
                 ("duration", "number", "seconds, 0 to 300"),

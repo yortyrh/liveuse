@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CaptureView } from "@/components/capture-view";
@@ -30,6 +30,7 @@ export function AgentChat({
   const stick = useRef(true);
   const streaming = lines.some((line) => line.pending);
   const announcement = announcementFor(lines);
+  const now = useNow(streaming);
 
   useEffect(() => {
     const el = scroller.current;
@@ -94,7 +95,7 @@ export function AgentChat({
         ) : (
           <div className="grid gap-4">
             {lines.map((line) => (
-              <Message key={line.id} line={line} />
+              <Message key={line.id} line={line} now={now} />
             ))}
             {running && !streaming ? (
               <p className="text-xs text-muted-foreground">Using the computer…</p>
@@ -148,11 +149,15 @@ export function AgentChat({
   );
 }
 
-function Message({ line }: { line: TranscriptLine }) {
-  if (line.role === "tool") {
+function Message({ line, now }: { line: TranscriptLine; now: number }) {
+  const elapsed = elapsedMs(line, now);
+  if (line.role === "tool" || line.role === "reasoning") {
     return (
       <div className="grid gap-2 border-l-2 border-border pl-3">
-        <p className="text-xs break-words text-muted-foreground">{line.text}</p>
+        <p className="text-xs break-words text-muted-foreground">
+          {line.text}
+          <Duration ms={elapsed} />
+        </p>
         {line.image ? <CaptureView src={line.image} alt={line.text || "Screen capture"} /> : null}
       </div>
     );
@@ -171,7 +176,10 @@ function Message({ line }: { line: TranscriptLine }) {
 
   return (
     <article className="max-w-[42rem]" aria-label="Agent" aria-busy={line.pending || undefined}>
-      <p className="mb-1 text-xs text-muted-foreground">Agent</p>
+      <p className="mb-1 text-xs text-muted-foreground">
+        Agent
+        <Duration ms={elapsed} />
+      </p>
       {line.text ? (
         <MarkdownMessage text={line.text} />
       ) : line.pending ? (
@@ -195,13 +203,64 @@ function announcementFor(lines: TranscriptLine[]) {
     return "";
   }
   const brief = briefText(last.text);
-  if (last.role === "tool") {
-    return brief;
+  const time = last.ms != null ? `, ${formatDuration(last.ms)}` : "";
+  if (last.role === "tool" || last.role === "reasoning") {
+    return `${brief}${time}`;
   }
   if (last.role === "assistant") {
-    return `Agent: ${brief}`;
+    return `Agent: ${brief}${time}`;
   }
   return "";
+}
+
+function Duration({ ms }: { ms: number | null }) {
+  if (ms == null) {
+    return null;
+  }
+  return (
+    <span className="tabular-nums">
+      <span aria-hidden="true"> · </span>
+      {formatDuration(ms)}
+    </span>
+  );
+}
+
+function elapsedMs(line: TranscriptLine, now: number) {
+  if (!line.pending && line.ms != null) {
+    return line.ms;
+  }
+  if (line.started != null) {
+    return Math.max(0, now - line.started);
+  }
+  return line.ms ?? null;
+}
+
+function formatDuration(ms: number) {
+  const clamped = Math.max(0, Math.round(ms));
+  if (clamped < 10_000) {
+    return `${(clamped / 1000).toFixed(1)}s`;
+  }
+  if (clamped < 60_000) {
+    return `${Math.round(clamped / 1000)}s`;
+  }
+  const total = Math.round(clamped / 1000);
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
+}
+
+function useNow(ticking: boolean) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!ticking) {
+      return;
+    }
+    const update = () => setNow(Date.now());
+    update();
+    const id = window.setInterval(update, 100);
+    return () => window.clearInterval(id);
+  }, [ticking]);
+  return now;
 }
 
 function briefText(text: string) {

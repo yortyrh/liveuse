@@ -4,10 +4,13 @@ import type { Target } from "@/lib/backend";
 
 export type TranscriptLine = {
   id: string;
-  role: "user" | "assistant" | "tool";
+  role: "user" | "assistant" | "tool" | "reasoning";
   text: string;
   image?: string | null;
   pending?: boolean;
+  started?: number;
+  ms?: number;
+  reset?: boolean;
 };
 
 type AgentDelta = {
@@ -15,6 +18,8 @@ type AgentDelta = {
   text: string;
   done: boolean;
   reset: boolean;
+  started?: number | null;
+  ms?: number | null;
 };
 
 export async function runAgent(options: {
@@ -34,12 +39,7 @@ export async function runAgent(options: {
     if (!line?.id) {
       return;
     }
-    lines.push({
-      id: line.id,
-      role: line.role,
-      text: line.text,
-      image: line.image || undefined,
-    });
+    applyLine(lines, line);
     options.onUpdate([...lines]);
   });
   const stopDelta = await listen<AgentDelta>("agent-delta", (event) => {
@@ -58,6 +58,8 @@ export async function runAgent(options: {
         role: "assistant",
         text: delta.text,
         pending: !delta.done,
+        started: millis(delta.started),
+        ms: millis(delta.ms),
       };
       const index = lines.findIndex((line) => line.id === delta.id);
       if (index < 0) {
@@ -84,4 +86,32 @@ export async function runAgent(options: {
     stopDelta();
     abort();
   }
+}
+
+function applyLine(lines: TranscriptLine[], line: TranscriptLine) {
+  const index = lines.findIndex((item) => item.id === line.id);
+  if (line.reset) {
+    if (index >= 0) {
+      lines.splice(index, 1);
+    }
+    return;
+  }
+  const next: TranscriptLine = {
+    id: line.id,
+    role: line.role,
+    text: line.text,
+    image: line.image || undefined,
+    pending: line.pending || undefined,
+    started: millis(line.started),
+    ms: millis(line.ms),
+  };
+  if (index < 0) {
+    lines.push(next);
+  } else {
+    lines[index] = next;
+  }
+}
+
+function millis(value: number | null | undefined) {
+  return typeof value === "number" ? value : undefined;
 }
