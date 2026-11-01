@@ -12,7 +12,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
         Skip to content
       </a>
       <SiteNav />
-      <div className="flex flex-1 flex-col pt-24">{children}</div>
+      <div className="flex flex-1 flex-col pt-16">{children}</div>
       <SiteFooter />
     </>
   );

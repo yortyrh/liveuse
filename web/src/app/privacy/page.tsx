@@ -15,7 +15,7 @@ export default function PrivacyPage() {
         tabIndex={-1}
         className="mx-auto flex w-full max-w-[680px] flex-col gap-6 px-4 py-12 outline-none sm:px-6"
       >
-        <h1 className="text-4xl font-semibold">Privacy</h1>
+        <h1 className="display text-5xl">Privacy</h1>
         <p className="text-pretty text-base">
           This site does not ask you to create an account, and it does not run analytics. Your
           theme choice is stored in this browser.

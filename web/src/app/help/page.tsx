@@ -16,10 +16,10 @@ export default function HelpPage() {
       <main
         id="content"
         tabIndex={-1}
-        className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 py-12 outline-none sm:px-6"
+        className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-5 py-12 outline-none sm:px-8"
       >
         <header className="flex max-w-[680px] flex-col gap-4">
-          <h1 className="text-4xl font-semibold text-balance">Use the pointer</h1>
+          <h1 className="display text-5xl text-balance">Use the pointer</h1>
           <p className="text-pretty text-lg">
             On the Mac with LuLu, LiveUse talks to it over USB. On any other
             computer on that network, the same pointer is an API and an MCP, gated by the token.
@@ -28,7 +28,7 @@ export default function HelpPage() {
 
         <section className="flex flex-col gap-8">
           <div className="flex max-w-[680px] flex-col gap-4">
-            <h2 className="text-3xl font-semibold">On this Mac</h2>
+            <h2 className="display text-3xl sm:text-4xl">On this Mac</h2>
             <p className="text-pretty text-lg">
               Plug in LuLu with the firmware running. The Device tab should say Connected, and
               the service should be listening. The bootloader does not start the service. When a
@@ -58,7 +58,7 @@ export default function HelpPage() {
 
         <section className="flex flex-col gap-8">
           <div className="flex max-w-[680px] flex-col gap-4">
-            <h2 className="text-3xl font-semibold">From another computer</h2>
+            <h2 className="display text-3xl sm:text-4xl">From another computer</h2>
             <p className="text-pretty text-lg">
               The Share tab on the Mac with LuLu shows the API URL, the token, and the MCP
               configuration. Anyone with that token on the local network can move the cursor and
@@ -112,7 +112,7 @@ export default function HelpPage() {
         </section>
 
         <section className="flex max-w-[680px] flex-col gap-6">
-          <h2 className="text-3xl font-semibold">A cluster</h2>
+          <h2 className="display text-3xl sm:text-4xl">A cluster</h2>
           <p className="text-pretty text-lg">
             Each Mac that should be driven needs its own LuLu, its own LiveUse, and its own token.
             Give every server a name in the agent config. The agent then chooses which pointer to
@@ -137,7 +137,7 @@ export default function HelpPage() {
             />
           </div>
           <div className="flex max-w-[680px] flex-col gap-4">
-            <h2 className="text-3xl font-semibold">LuLu</h2>
+            <h2 className="display text-3xl sm:text-4xl">LuLu</h2>
             <p className="text-pretty text-lg">
               LuLu is a printed case with a Seeed XIAO SAMD21 inside. One USB-C cable shows up as
               a HID mouse, a boot keyboard, and a serial port. A single Arduino loop reads one line and
@@ -167,7 +167,7 @@ export default function HelpPage() {
 
         <section id="serial" className="flex scroll-mt-24 flex-col gap-8">
           <div className="flex max-w-[680px] flex-col gap-4">
-            <h2 className="text-3xl font-semibold">The serial port</h2>
+            <h2 className="display text-3xl sm:text-4xl">The serial port</h2>
             <p className="text-pretty text-lg">
               LiveUse speaks to LuLu in plain lines over its serial port, at 115200 baud. You
               can do the same from a terminal or your own program while LiveUse is closed. The port
@@ -211,7 +211,7 @@ export default function HelpPage() {
         </section>
 
         <section className="flex max-w-[680px] flex-col gap-6">
-          <h2 className="text-3xl font-semibold">Models</h2>
+          <h2 className="display text-3xl sm:text-4xl">Models</h2>
           <p className="text-pretty text-lg">
             LiveUse does not ship a model. The pictures above use Anthropic, Claude Opus 5.5.
             Change, on the Control tab, saves whichever company and model look at the screen and

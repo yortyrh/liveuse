@@ -1,3 +1,4 @@
+import type React from "react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "@/lib/motion";
@@ -9,18 +10,21 @@ export function PrimaryLink({
   href,
   children,
   className,
+  ref,
 }: {
   href: string;
   children: ReactNode;
   className?: string;
+  ref?: React.Ref<HTMLAnchorElement>;
 }) {
   return (
     <a
+      ref={ref}
       href={href}
       className={cn(
-        "inline-flex w-fit cursor-pointer items-center justify-center rounded-lg bg-primary px-3 py-2 text-base font-semibold text-primary-foreground",
+        "wide inline-flex w-fit cursor-pointer items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 text-base font-semibold text-primary-foreground",
         motion,
-        "hover:bg-primary/80 active:scale-[0.98]",
+        "hover:bg-primary/85 active:translate-y-px data-[pressed=true]:translate-y-px data-[pressed=true]:bg-primary/85",
         focus,
         className,
       )}
@@ -46,9 +50,9 @@ export function TextLink({
       href={href}
       aria-current={current ? "page" : undefined}
       className={cn(
-        "cursor-pointer text-sm font-semibold text-foreground underline decoration-transparent underline-offset-4",
+        "cursor-pointer text-sm font-semibold text-foreground underline decoration-rule decoration-1 underline-offset-4",
         motion,
-        "hover:decoration-foreground active:scale-[0.98]",
+        "hover:decoration-foreground hover:decoration-2",
         focus,
         current && "decoration-foreground",
         className,
@@ -60,8 +64,8 @@ export function TextLink({
 }
 
 export const secondaryButtonClass = cn(
-  "inline-flex w-full cursor-pointer items-center justify-center rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground",
+  "inline-flex w-full cursor-pointer items-center justify-center rounded-md border border-border bg-transparent px-4 py-3 text-base font-semibold text-foreground",
   motion,
-  "hover:bg-muted active:scale-[0.98]",
+  "hover:bg-muted active:translate-y-px",
   focus,
 );

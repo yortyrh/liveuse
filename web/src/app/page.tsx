@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
-import { AppWindow, Key, Mouse, SealCheck } from "@phosphor-icons/react/ssr";
+import { AgentHero } from "@/components/agent-hero";
 import { DownloadSkeleton, Downloads } from "@/components/downloads";
-import { HeroStage } from "@/components/hero-stage";
-import { HardwareSection, PartsStrip } from "@/components/hardware";
+import { HardwareSection, SignalPath } from "@/components/hardware";
 import { PrimaryLink } from "@/components/primary-link";
-import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
-import { Tagline } from "@/components/tagline";
 import { questions } from "@/lib/faq";
 import { cn } from "@/lib/utils";
 
@@ -27,41 +24,37 @@ export const metadata: Metadata = {
   },
 };
 
-const benefits = [
+const controls = [
   {
-    icon: Mouse,
-    title: "A pointer the agent can call",
-    body: "Mouse and keyboard travel over a local API and MCP while LuLu is plugged in.",
+    title: "The token decides who can use it",
+    body: "The Share tab shows the URL, the token, and the MCP configuration. Issue a new token and the previous clients stop working.",
   },
   {
-    icon: AppWindow,
-    title: "Close the window and keep it",
-    body: "LiveUse stays in the menu bar. Quit in that menu ends the app. A Dock click opens the window again.",
+    title: "You can stop any action",
+    body: "Press Control, Option, Command, and Escape together. The current action stops and the LiveUse window opens.",
   },
   {
-    icon: Key,
-    title: "Replace the token when you want",
-    body: "The Share tab shows the URL, the token, and the MCP configuration. A new token stops the previous clients.",
+    title: "It stays on your network",
+    body: "The API runs on the Mac with LuLu plugged in and answers on your local network. There is no account and no cloud relay.",
   },
   {
-    icon: SealCheck,
-    title: "Check the file before you open it",
-    body: "Each installer shows its size and SHA256 checksum. Copy the checksum and compare it.",
+    title: "It keeps running in the menu bar",
+    body: "Close the window and LiveUse keeps serving. Quit in the menu bar ends it. A Dock click opens the window again.",
   },
 ];
 
 const steps = [
   {
-    title: "Install the app",
-    body: "Open the disk image, drag LiveUse to Applications, and allow screen recording plus incoming connections.",
+    title: "Install LiveUse",
+    body: "Open the disk image, drag LiveUse to Applications, and allow screen recording and incoming connections.",
   },
   {
     title: "Plug in LuLu",
-    body: "Connect LuLu with a data cable. The Device tab writes the LiveUse firmware, or updates it. The bootloader does not start the service.",
+    body: "Use a USB-C cable that carries data. The Device tab writes the LiveUse firmware, or updates it.",
   },
   {
-    title: "Share the token",
-    body: "Copy the URL and the token from the Share tab. Closing the window leaves the service in the menu bar.",
+    title: "Give your agent the token",
+    body: "Copy the URL and the token from the Share tab, or the MCP configuration, into your agent.",
   },
 ];
 
@@ -83,165 +76,125 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }}
       />
       <main id="content" tabIndex={-1} className="outline-none">
-        <Band className="pt-8 pb-12">
-          <div className="grid items-center gap-12 lg:grid-cols-2">
-            <Reveal className="min-w-0">
-              <div className="flex max-w-[680px] flex-col gap-6">
-                <span className="w-fit rounded-full border border-border bg-card px-3 py-1 font-mono text-xs text-muted-foreground">
-                  macOS app · LuLu, the USB device · firmware
-                </span>
-                <h1 className="flex flex-col gap-2 text-4xl font-semibold sm:text-5xl">
-                  <span className="hero-heading text-balance">The local pointer</span>
-                  <span className="text-balance text-foreground">
-                    with <span className="text-brand">LiveUse</span>
-                  </span>
-                </h1>
-                <p className="text-pretty text-lg">
-                  LiveUse is the macOS app for LuLu, a small USB device that is a mouse and a
-                  keyboard. With LuLu plugged in, it publishes an API and an MCP for both, then
-                  stays in the menu bar when you close the window.
-                </p>
-                <PrimaryLink href="/#download">Download for Mac</PrimaryLink>
-                <p className="text-sm font-semibold text-muted-foreground">
-                  Free on macOS, with a public checksum. Linux and Windows are in progress.
-                </p>
-              </div>
-            </Reveal>
-            <Reveal className="min-w-0" delay={120}>
-              <HeroStage />
-            </Reveal>
-          </div>
+        <Band className="pt-6 pb-24 sm:pt-10">
+          <AgentHero />
         </Band>
 
-        <Band className="pb-12">
-          <section aria-label="Three parts" className="flex flex-col gap-6">
-            <Reveal>
-              <p className="max-w-[680px] text-pretty text-base text-muted-foreground">
-                Three parts work together. The app runs on your Mac. LuLu is a printed case with
-                a Seeed XIAO SAMD21 inside. The firmware runs on that chip.
+        <Band className="border-t border-border py-20">
+          <section aria-labelledby="path-title" className="flex flex-col gap-12">
+            <div className="flex max-w-[640px] flex-col gap-4">
+              <h2 id="path-title" className="display text-4xl sm:text-5xl">
+                How a call reaches your cursor
+              </h2>
+              <p className="text-lg text-pretty">
+                Your agent can run anywhere on your network. The pointer it moves is the one on
+                the Mac with LuLu plugged in.
               </p>
-            </Reveal>
-            <PartsStrip />
-          </section>
-        </Band>
-
-        <Band className="py-12">
-          <Reveal>
-            <section className="flex max-w-[680px] flex-col gap-4">
-              <h2 className="text-3xl font-semibold">The pointer stays on your Mac</h2>
-              <p className="text-pretty text-lg">
-                An agent on another computer cannot move your cursor by itself. LiveUse runs on
-                that Mac, with LuLu on the desk, and publishes the mouse and the keyboard
-                on the local network.
-              </p>
-            </section>
-          </Reveal>
-        </Band>
-
-        <Band className="py-12">
-          <section className="flex flex-col gap-8">
-            <Reveal>
-              <h2 className="max-w-[680px] text-3xl font-semibold">What you get</h2>
-            </Reveal>
-            <div className="grid gap-6 md:grid-cols-2">
-              {benefits.map((benefit, index) => {
-                const Icon = benefit.icon;
-                return (
-                  <Reveal key={benefit.title} delay={index * 80}>
-                    <article className="flex h-full flex-col gap-4 rounded-2xl border border-border bg-card p-6">
-                      <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        <Icon size={22} aria-hidden="true" />
-                      </span>
-                      <h3 className="text-xl font-semibold">{benefit.title}</h3>
-                      <p className="text-pretty text-base text-muted-foreground">{benefit.body}</p>
-                    </article>
-                  </Reveal>
-                );
-              })}
             </div>
+            <SignalPath />
           </section>
         </Band>
 
-        <Band className="py-24">
-          <Tagline />
-        </Band>
+        <div className="bg-[#15181d] text-[#e9ecf0] dark:border-y dark:border-border dark:bg-[#181d24]">
+          <Band className="py-20">
+            <section aria-labelledby="control-title" className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-16">
+              <h2 id="control-title" className="display text-4xl sm:text-5xl">
+                The agent gets a pointer. Only the token can use it.
+              </h2>
+              <dl className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
+                {controls.map((item) => (
+                  <div key={item.title} className="flex flex-col gap-2 border-t border-white/20 pt-4">
+                    <dt className="wide text-lg font-semibold">{item.title}</dt>
+                    <dd className="text-base text-pretty text-[#a9b0bc]">{item.body}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          </Band>
+        </div>
 
-        <Band className="py-12">
-          <section id="setup" className="flex scroll-mt-24 flex-col gap-8">
-            <Reveal>
-              <h2 className="max-w-[680px] text-3xl font-semibold">How it works</h2>
-            </Reveal>
-            <ol className="grid gap-8 md:grid-cols-3">
+        <Band className="py-20">
+          <section id="setup" aria-labelledby="setup-title" className="flex scroll-mt-24 flex-col gap-12">
+            <h2 id="setup-title" className="display max-w-[640px] text-4xl sm:text-5xl">
+              Set up in three steps
+            </h2>
+            <ol className="grid gap-10 md:grid-cols-3 md:gap-8">
               {steps.map((step, index) => (
-                <li key={step.title}>
-                  <Reveal delay={index * 80}>
-                    <div className="flex flex-col gap-4 border-t-2 border-brand/40 pt-4">
-                      <span className="font-mono text-sm font-medium text-brand">0{index + 1}</span>
-                      <h3 className="text-xl font-semibold">{step.title}</h3>
-                      <p className="text-pretty text-base">{step.body}</p>
-                    </div>
-                  </Reveal>
+                <li key={step.title} className="flex flex-col gap-3">
+                  <span aria-hidden="true" className="display text-6xl text-rule">
+                    {index + 1}
+                  </span>
+                  <h3 className="wide text-xl font-semibold">{step.title}</h3>
+                  <p className="text-base text-pretty text-muted-foreground">{step.body}</p>
                 </li>
               ))}
             </ol>
           </section>
         </Band>
 
-        <Band className="py-12">
+        <Band className="border-t border-border py-20">
           <HardwareSection />
         </Band>
 
-        <Band className="py-12">
-          <section id="download" className="flex scroll-mt-24 flex-col gap-8">
-            <Reveal>
-              <div className="flex max-w-[680px] flex-col gap-4">
-                <h2 className="text-3xl font-semibold">Download</h2>
-                <p className="text-pretty text-lg">
-                  One installer for Intel and one for Apple Silicon. Open the Apple menu and
-                  choose About This Mac. If it says Chip, choose Apple Silicon. If it says
-                  Processor, choose Intel.
-                </p>
-              </div>
-            </Reveal>
+        <Band className="border-t border-border py-20">
+          <section id="download" aria-labelledby="download-title" className="flex scroll-mt-24 flex-col gap-10">
+            <div className="flex max-w-[640px] flex-col gap-4">
+              <h2 id="download-title" className="display text-4xl sm:text-5xl">
+                Download
+              </h2>
+              <p className="text-lg text-pretty">
+                One installer for Apple Silicon and one for Intel. To check yours, open the Apple
+                menu and choose About This Mac.
+              </p>
+            </div>
             <Suspense fallback={<DownloadSkeleton />}>
               <Downloads />
             </Suspense>
           </section>
         </Band>
 
-        <Band className="py-12">
-          <section id="questions" className="flex scroll-mt-24 flex-col gap-8">
-            <Reveal>
-              <div className="flex max-w-[680px] flex-col gap-4">
-                <h2 className="text-3xl font-semibold">Questions</h2>
-                <p className="text-pretty text-lg">
-                  Install, permissions, LuLu, and who can use the token.
-                </p>
-              </div>
-            </Reveal>
-            <div className="grid gap-8 md:grid-cols-2">
-              {questions.map((item, index) => (
-                <Reveal key={item.question} delay={index * 40}>
-                  <article className="flex flex-col gap-3">
-                    <h3 className="text-xl font-semibold">{item.question}</h3>
-                    <p className="text-pretty text-base text-muted-foreground">{item.answer}</p>
-                  </article>
-                </Reveal>
+        <Band className="border-t border-border py-20">
+          <section
+            id="questions"
+            aria-labelledby="questions-title"
+            className="grid scroll-mt-24 gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-16"
+          >
+            <div className="flex flex-col gap-4 lg:sticky lg:top-28 lg:self-start">
+              <h2 id="questions-title" className="display text-4xl sm:text-5xl">
+                Questions
+              </h2>
+              <p className="text-lg text-pretty text-muted-foreground">
+                Install, permissions, LuLu, and who can use the token.
+              </p>
+            </div>
+            <div className="border-t border-foreground">
+              {questions.map((item) => (
+                <details key={item.question} className="group border-b border-border">
+                  <summary className="flex cursor-pointer items-center justify-between gap-6 py-5 text-lg font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground">
+                    {item.question}
+                    <span
+                      aria-hidden="true"
+                      className="faq-mark relative size-4 shrink-0 transition-transform duration-200 before:absolute before:inset-x-0 before:top-1/2 before:h-0.5 before:-translate-y-1/2 before:bg-current after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 after:-translate-x-1/2 after:bg-current"
+                    />
+                  </summary>
+                  <p className="max-w-[60ch] pb-6 text-base text-pretty text-muted-foreground">
+                    {item.answer}
+                  </p>
+                </details>
               ))}
             </div>
           </section>
         </Band>
 
-        <Band className="pt-12 pb-24">
-          <Reveal>
-            <section className="flex max-w-[680px] flex-col gap-6">
-              <h2 className="text-4xl font-semibold text-balance">Download LiveUse for your Mac</h2>
-              <p className="text-pretty text-lg">
-                Free, with a public checksum on each file. No account.
-              </p>
-              <PrimaryLink href="/#download">Download for Mac</PrimaryLink>
-            </section>
-          </Reveal>
+        <Band className="border-t border-border py-20">
+          <section className="flex flex-col items-start gap-6 sm:flex-row sm:items-end sm:justify-between">
+            <h2 className="display max-w-[640px] text-4xl sm:text-5xl">
+              Put LuLu on your desk and LiveUse on your Mac
+            </h2>
+            <PrimaryLink href="/#download" className="shrink-0">
+              Download for Mac
+            </PrimaryLink>
+          </section>
         </Band>
       </main>
     </SiteShell>
@@ -249,5 +202,5 @@ export default function Home() {
 }
 
 function Band({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("mx-auto w-full max-w-6xl px-4 sm:px-6", className)}>{children}</div>;
+  return <div className={cn("mx-auto w-full max-w-6xl px-5 sm:px-8", className)}>{children}</div>;
 }

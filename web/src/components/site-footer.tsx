@@ -20,10 +20,10 @@ export function SiteFooter() {
   const pathname = usePathname();
 
   return (
-    <footer className="border-t border-border bg-card">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+    <footer className="border-t border-border bg-stage">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-12 sm:flex-row sm:items-start sm:justify-between sm:px-8">
         <div className="flex flex-col gap-2">
-          <p className="inline-flex items-center gap-2 text-sm font-semibold">
+          <p className="wide inline-flex items-center gap-2 text-base font-semibold">
             <Logo className="size-6" />
             LiveUse
           </p>

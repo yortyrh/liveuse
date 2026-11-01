@@ -15,7 +15,7 @@ export default function TermsPage() {
         tabIndex={-1}
         className="mx-auto flex w-full max-w-[680px] flex-col gap-6 px-4 py-12 outline-none sm:px-6"
       >
-        <h1 className="text-4xl font-semibold">Terms</h1>
+        <h1 className="display text-5xl">Terms</h1>
         <p className="text-pretty text-base">
           LiveUse is a free macOS download. You receive the installer as it was published. Compare
           the checksum on the download page with the file before you open it.

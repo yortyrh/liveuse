@@ -116,20 +116,20 @@ export function SiteNav() {
 
   return (
     <>
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center">
+      <div className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md">
         <nav
           aria-label="Main"
-          className="pointer-events-auto mt-6 flex w-max items-center gap-2 rounded-full border border-border bg-card/85 px-2 py-2 shadow-sm backdrop-blur-xl"
+          className="mx-auto flex h-16 w-full max-w-6xl items-center gap-1 px-3 sm:px-6"
         >
           <Link
             href="/"
             aria-current={pathname === "/" ? "page" : undefined}
-            className={cn(itemClass(false), "inline-flex items-center gap-2")}
+            className={cn(itemClass(false), "wide mr-auto inline-flex items-center gap-2 text-base text-foreground")}
           >
-            <Logo className="size-6" />
+            <Logo className="size-7" />
             LiveUse
           </Link>
-          <div className="hidden items-center gap-2 md:flex">
+          <div className="hidden items-center gap-1 md:flex">
             {links.map((link) => (
               <a
                 key={link.id}
@@ -146,7 +146,7 @@ export function SiteNav() {
             ref={buttonRef}
             type="button"
             className={cn(
-              "relative size-10 cursor-pointer rounded-full text-foreground md:hidden",
+              "relative size-10 cursor-pointer rounded-md text-foreground md:hidden",
               motion,
               "hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground active:scale-[0.98]",
             )}
@@ -189,7 +189,7 @@ export function SiteNav() {
               onClick={closeMenu}
               aria-current={marked(link.id, link.href) ? (link.href === "/help" ? "page" : "location") : undefined}
               className={cn(
-                "text-4xl font-semibold text-foreground",
+                "display text-4xl text-foreground",
                 motion,
                 delays[index],
                 shown ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0",
@@ -207,9 +207,9 @@ export function SiteNav() {
 
 function itemClass(current: boolean) {
   return cn(
-    "cursor-pointer rounded-full px-3 py-2 text-sm font-semibold",
+    "cursor-pointer rounded-md px-3 py-2 text-sm font-semibold underline-offset-[6px]",
     motion,
-    "hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground active:scale-[0.98]",
-    current ? "bg-muted text-foreground" : "text-muted-foreground",
+    "hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
+    current ? "text-foreground underline decoration-pointer-ink decoration-2" : "text-muted-foreground",
   );
 }

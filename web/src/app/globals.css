@@ -5,26 +5,31 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #eef2f7;
-  --foreground: #0e1626;
-  --card: #ffffff;
-  --card-foreground: #0e1626;
-  --popover: #ffffff;
-  --popover-foreground: #0e1626;
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-  --secondary: #e6ecf4;
-  --secondary-foreground: #0e1626;
-  --muted: #e6ecf4;
-  --muted-foreground: #556074;
-  --accent: #e6ecf4;
-  --accent-foreground: #0e1626;
-  --destructive: oklch(0.64 0.21 25.39);
-  --border: #d4dce8;
-  --input: #d4dce8;
-  --ring: #2563eb;
-  --brand: #2f6fd6;
-  --stage: radial-gradient(120% 90% at 30% 10%, #ffffff 0%, #e3eaf5 70%);
+  /* Paper, ink, and the three colors taken from LuLu and its logo. */
+  --background: #eef0f2;
+  --foreground: #15181d;
+  --card: #f8f9fa;
+  --card-foreground: #15181d;
+  --popover: #f8f9fa;
+  --popover-foreground: #15181d;
+  --primary: #15181d;
+  --primary-foreground: #f8f9fa;
+  --secondary: #e2e5e9;
+  --secondary-foreground: #15181d;
+  --muted: #e2e5e9;
+  --muted-foreground: #5a6170;
+  --accent: #e2e5e9;
+  --accent-foreground: #15181d;
+  --destructive: oklch(0.58 0.21 25.39);
+  --border: #cfd4db;
+  --input: #cfd4db;
+  --ring: #15181d;
+  --brand: #2e62d9;
+  --pointer: #3ee0e8;
+  --pointer-ink: #0b7a80;
+  --spark: #f5b429;
+  --rule: #b9c0ca;
+  --stage: #e4e7eb;
   --chart-1: oklch(0.62 0.19 259.76);
   --chart-2: oklch(0.55 0.22 262.96);
   --chart-3: oklch(0.49 0.22 264.43);
@@ -51,26 +56,30 @@
 }
 
 .dark {
-  --background: #0a1120;
-  --foreground: #eef2f8;
-  --card: #111a2e;
-  --card-foreground: #eef2f8;
-  --popover: #15203a;
-  --popover-foreground: #eef2f8;
-  --primary: #3b82f6;
-  --primary-foreground: #ffffff;
-  --secondary: #18233d;
-  --secondary-foreground: #eef2f8;
-  --muted: #18233d;
-  --muted-foreground: #95a2b9;
-  --accent: #18233d;
-  --accent-foreground: #eef2f8;
-  --destructive: oklch(0.64 0.21 25.39);
-  --border: #24324f;
-  --input: #24324f;
-  --ring: #3b82f6;
-  --brand: #6aa5ef;
-  --stage: radial-gradient(120% 90% at 30% 10%, #1c2b4d 0%, #0f1a33 70%);
+  --background: #101318;
+  --foreground: #e9ecf0;
+  --card: #171b21;
+  --card-foreground: #e9ecf0;
+  --popover: #171b21;
+  --popover-foreground: #e9ecf0;
+  --primary: #e9ecf0;
+  --primary-foreground: #101318;
+  --secondary: #1e232b;
+  --secondary-foreground: #e9ecf0;
+  --muted: #1e232b;
+  --muted-foreground: #9aa2b0;
+  --accent: #1e232b;
+  --accent-foreground: #e9ecf0;
+  --destructive: oklch(0.68 0.19 25.39);
+  --border: #2a3039;
+  --input: #2a3039;
+  --ring: #e9ecf0;
+  --brand: #6f9bf0;
+  --pointer: #3ee0e8;
+  --pointer-ink: #3ee0e8;
+  --spark: #f5b429;
+  --rule: #3a414c;
+  --stage: #161a20;
   --chart-1: oklch(0.71 0.14 254.69);
   --chart-2: oklch(0.62 0.19 259.76);
   --chart-3: oklch(0.55 0.22 262.96);
@@ -96,9 +105,9 @@
 }
 
 @theme inline {
-  --font-heading: var(--font-geist);
-  --font-sans: var(--font-geist);
-  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-archivo);
+  --font-sans: var(--font-archivo);
+  --font-mono: var(--font-martian);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -118,6 +127,10 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-brand: var(--brand);
+  --color-pointer: var(--pointer);
+  --color-pointer-ink: var(--pointer-ink);
+  --color-spark: var(--spark);
+  --color-rule: var(--rule);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -169,6 +182,17 @@
     text-wrap: balance;
   }
 
+  body {
+    font-size: 1.0625rem;
+    line-height: 1.6;
+  }
+
+  code,
+  pre,
+  kbd {
+    font-stretch: 85%;
+  }
+
   p {
     text-wrap: pretty;
   }
@@ -183,40 +207,84 @@
   background: var(--stage);
 }
 
-.hero-heading {
-  background-image: linear-gradient(to right, #0e1626, #4b5d7e);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+/* Expanded Archivo reads like the lettering on a part label. */
+.display {
+  font-stretch: 125%;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 0.98;
 }
 
-.dark .hero-heading {
-  background-image: linear-gradient(to right, #ffffff, #8fa3c4);
+.wide {
+  font-stretch: 112%;
+  letter-spacing: -0.01em;
 }
 
-.reveal-pending {
-  opacity: 0;
-  transform: translateY(4rem);
-  filter: blur(12px);
+/* Millimetre paper, used only where something is measured. */
+.mm-paper {
+  background-color: var(--stage);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--brand) 9%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--brand) 9%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--brand) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--brand) 4%, transparent) 1px, transparent 1px);
+  background-size:
+    40px 40px,
+    40px 40px,
+    8px 8px,
+    8px 8px;
 }
 
-.reveal-pending.reveal-in {
-  opacity: 1;
-  transform: translateY(0);
-  filter: blur(0);
-  transition:
-    opacity 1000ms cubic-bezier(0.32, 0.72, 0, 1),
-    transform 1000ms cubic-bezier(0.32, 0.72, 0, 1),
-    filter 1000ms cubic-bezier(0.32, 0.72, 0, 1);
+/* The agent's cursor in the hero. */
+.agent-cursor {
+  transition: transform 900ms cubic-bezier(0.65, 0, 0.35, 1);
+  will-change: transform;
 }
 
-.tag-pending {
-  color: color-mix(in srgb, var(--foreground) 30%, transparent);
+.agent-click::after {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: -14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  border: 2px solid var(--spark);
+  animation: agent-ring 600ms ease-out forwards;
 }
 
-.tag-pending.tag-on {
-  color: var(--foreground);
-  transition: color 700ms cubic-bezier(0.32, 0.72, 0, 1);
+@keyframes agent-ring {
+  from {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.log-line {
+  animation: log-in 240ms ease-out both;
+}
+
+@keyframes log-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+details > summary {
+  list-style: none;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details[open] .faq-mark {
+  transform: rotate(45deg);
 }
 
 @media (prefers-reduced-motion: reduce) {
