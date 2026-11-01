@@ -28,7 +28,7 @@ Stdout is the version to publish, one `X.Y.Z` line. If the script fails, show it
 
 That repository also holds firmware. This command does not write `manifest.json`, does not create a `firmware-v*` tag, and does not mark the app release as latest.
 
-Do not create tags or push `yortyrh/liveuse` or `yortyrh/mcp-mouse`. Do not pass `--force`. A published version is not replaced.
+After the upload, the script tags HEAD in `yortyrh/liveuse` as `app-vX.Y.Z`, pushes only that tag, and creates a GitHub release there with the same notes and a link to the download. That release has no assets and is not marked as latest. Do not create tags or push anything else, and do not touch `yortyrh/mcp-mouse`. Do not pass `--force`. A published version is not replaced.
 
 The build runs on macOS. It needs both Rust targets (`x86_64-apple-darwin` and `aarch64-apple-darwin`). Without a Developer ID Application certificate, the script passes `--no-sign` and records `"signed": false`.
 
@@ -48,4 +48,4 @@ If it succeeds, run:
 python3 desktop/scripts/release.py
 ```
 
-Show the release URL it prints. If it says the release is up but `apps.json` on `main` was not updated, stop and report that. Do not run the script again unless the user asks to retry with `--point`.
+Show the release URL it prints. If it says the release is up but `apps.json` on `main` was not updated, stop and report that. Do not run the script again unless the user asks to retry with `--point`. Also show the `yortyrh/liveuse` release URL. If it says the release is up but not registered on `yortyrh/liveuse`, stop and report that. Do not run the script again unless the user asks to retry with `--register`.

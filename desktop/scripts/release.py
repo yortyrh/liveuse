@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Publish the current macOS app to the public releases repository.
 
-The source repositories are not tagged and nothing is pushed to them.
+After the upload, this repository gets the same app-vX.Y.Z tag on HEAD and a
+GitHub release that links to the download. That release has no assets.
 A published version is not replaced. The next version is a new tag.
 This script writes apps.json. It does not write manifest.json.
 """
@@ -21,6 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 DESKTOP = ROOT / "desktop"
 DEFAULT_REPO = "yortyrh/liveuse-releases"
+DEFAULT_SOURCE_REPO = "yortyrh/liveuse"
 BRANCH = "main"
 VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
@@ -97,6 +99,17 @@ def release_repo():
     if not REPO_RE.match(repo):
         fail(f"LIVEUSE_RELEASE_REPO has to look like owner/name, not {repo!r}.")
     return repo
+
+
+def source_repo():
+    repo = os.environ.get("LIVEUSE_SOURCE_REPO", DEFAULT_SOURCE_REPO).strip()
+    if not REPO_RE.match(repo):
+        fail(f"LIVEUSE_SOURCE_REPO has to look like owner/name, not {repo!r}.")
+    return repo
+
+
+def git(args):
+    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
 
 
 def require_clean():
@@ -453,6 +466,73 @@ def create_release(repo, version, notes, dmg_paths, apps_bytes):
     print(f"https://github.com/{repo}/releases/tag/{tag}")
 
 
+def source_notes(version, repo, notes):
+    tag = f"app-v{version}"
+    link = f"Download: https://github.com/{repo}/releases/tag/{tag}"
+    return f"{notes}\n\n{link}"
+
+
+def tag_source(tag, version):
+    head = git(["rev-parse", "HEAD"])
+    if head.returncode != 0:
+        fail(head.stderr.strip() or "git rev-parse HEAD failed.")
+    head = head.stdout.strip()
+    existing = git(["rev-parse", "--verify", "--quiet", f"refs/tags/{tag}^{{commit}}"])
+    if existing.returncode == 0:
+        if existing.stdout.strip() != head:
+            fail(f"{tag} already exists on {existing.stdout.strip()[:7]}, not on HEAD.")
+    else:
+        proc = git(["tag", "-a", tag, "-m", f"LiveUse {version}", head])
+        if proc.returncode != 0:
+            fail(proc.stderr.strip() or f"Can't create tag {tag}.")
+    proc = git(["push", "origin", f"refs/tags/{tag}"])
+    if proc.returncode != 0:
+        fail(proc.stderr.strip() or f"Can't push tag {tag}.")
+
+
+def register_source(version, release_repo_name, notes):
+    repo = source_repo()
+    tag = f"app-v{version}"
+    tag_source(tag, version)
+    if release_view(repo, tag) is not None:
+        print(f"{tag} is already registered on {repo}.", file=sys.stderr)
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        notes_path = Path(tmp) / "notes.md"
+        notes_path.write_text(source_notes(version, release_repo_name, notes) + "\n", encoding="utf-8")
+        proc = gh(
+            [
+                "release",
+                "create",
+                tag,
+                "--repo",
+                repo,
+                "--verify-tag",
+                "--title",
+                f"LiveUse {version}",
+                "--notes-file",
+                str(notes_path),
+                "--latest=false",
+            ]
+        )
+    if proc.returncode != 0:
+        fail((proc.stderr or proc.stdout).strip() or f"Can't create {tag} on {repo}.")
+    print(f"https://github.com/{repo}/releases/tag/{tag}")
+
+
+def register_existing(version):
+    repo = release_repo()
+    require_gh_auth()
+    tag = f"app-v{version}"
+    existing = release_view(repo, tag)
+    if existing is None or existing.get("isDraft"):
+        fail(f"{tag} is not a published release on {repo}.")
+    data, proc = gh_json(["release", "view", tag, "--repo", repo, "--json", "body"])
+    if data is None:
+        fail((proc.stderr or proc.stdout).strip() or f"Can't read the notes of {tag}.")
+    register_source(version, repo, data.get("body", "").strip())
+
+
 def download_apps(repo, tag):
     with tempfile.TemporaryDirectory() as tmp:
         proc = gh(
@@ -533,6 +613,15 @@ def publish(version, product):
             file=sys.stderr,
         )
         raise err
+    try:
+        register_source(version, repo, notes)
+    except SystemExit as err:
+        print(
+            f"The release is up, but it is not registered on {source_repo()}.\n"
+            "Retry with: python3 desktop/scripts/release.py --register",
+            file=sys.stderr,
+        )
+        raise err
 
 
 def main(argv=None):
@@ -540,7 +629,7 @@ def main(argv=None):
         prog="release.py",
         description=(
             "Publish the current macOS app to the public releases repository. "
-            "The source repositories are not tagged or pushed. "
+            "Then tag HEAD and register the release on the source repository. "
             "manifest.json is left untouched."
         ),
     )
@@ -560,6 +649,12 @@ def main(argv=None):
         action="store_true",
         help="Write the published apps.json onto main. Use this if that step failed.",
     )
+    mode.add_argument(
+        "--register",
+        action="store_true",
+        help="Tag HEAD and register the published release on the source repository. "
+        "Use this if that step failed.",
+    )
     args = parser.parse_args(argv)
 
     version, product = require_version()
@@ -569,6 +664,9 @@ def main(argv=None):
         return 0
     if args.point:
         point_existing(version)
+        return 0
+    if args.register:
+        register_existing(version)
         return 0
 
     signed = has_developer_id()
