@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
+import { GithubLogo } from "@phosphor-icons/react";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SOURCE_REPO } from "@/lib/links";
 import { motion } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -141,6 +143,17 @@ export function SiteNav() {
               </a>
             ))}
           </div>
+          <a
+            href={SOURCE_REPO}
+            aria-label="LiveUse on GitHub"
+            className={cn(
+              "inline-flex size-10 cursor-pointer items-center justify-center rounded-full text-foreground",
+              motion,
+              "hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground active:scale-[0.98]",
+            )}
+          >
+            <GithubLogo size={16} aria-hidden="true" />
+          </a>
           <ThemeToggle />
           <button
             ref={buttonRef}

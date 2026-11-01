@@ -1,3 +1,4 @@
+export const SOURCE_REPO = "https://github.com/yortyrh/liveuse";
 export const RELEASES_REPO = "https://github.com/yortyrh/liveuse-releases";
 export const FIRMWARE_DOCS = `${RELEASES_REPO}#readme`;
 export const CASE_REPO = "https://github.com/yortyrh/xiao-samd21-case";
