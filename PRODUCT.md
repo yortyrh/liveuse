@@ -42,17 +42,25 @@ Installers are one disk image for Intel and one for Apple Silicon. The site read
 - When a build is not signed, the first open is a right-click and Open.
 - Useful remote calls include screenshot, click, move_to, write, and scroll. Coordinates start at the top left of the primary display.
 
-Undecided: the homepage says the sketch uses FreeRTOS. the firmware repository README says there is no RTOS. That claim was not resolved.
+Resolved: the firmware has no RTOS. A single Arduino loop reads one CDC line and runs it. The site says so.
+
+## Related projects
+
+- `yortyrh/liveuse-releases`: app installers, firmware images, `manifest.json`, and the firmware guide (flashing, CDC commands, examples).
+- `yortyrh/xiao-samd21-case`: the LuLu case, two printed parts, 25.0 × 21.6 × 8.9 mm, PLA or PETG, no supports. Its renders are the case images on the site and in the app.
+- `liveuse-firmware-xiao-samd21`: the firmware source.
 
 ## Brand Commitments
 
-The name is LiveUse. The site voice is English, in short concrete sentences. No further identity constraints were set.
+The app is LiveUse. The device is LuLu: a printed case with a Seeed XIAO SAMD21 inside. Copy says LuLu, not XIAO; the chip appears only as a spec ("XIAO SAMD21 inside"). Every picture of the device shows it in its case, never the bare board. The image with the chip visible is `web/public/case/board-in-base.png`.
+
+The name is LiveUse. The site voice is English, in short concrete sentences. The palette follows the case: cool blue-gray ground in light mode, navy in dark mode, blue for actions and the word LiveUse. The app and the site share these tokens.
 
 ## Evidence on Hand
 
 - Download, setup, and FAQ copy in `web/src/app/page.tsx` and `web/src/lib/faq.ts`.
 - Help copy and screenshots: `web/public/help/device.png`, `web/public/help/control-opus.png`, `web/public/help/share.png`, `web/public/help/remote-form.png`, `web/public/help/device-hero.png`.
-- Board photos: `web/public/xiao-samd21.png`, `web/public/xiao-samd21-angle.png`. Mark: `web/public/logo.svg`.
+- LuLu renders from `xiao-samd21-case/images/`: `web/public/case/*.png`. No bare-board photos. Mark: `web/public/logo.svg`.
 - Product behavior in `desktop/README.md` and the firmware repository README.
 - Public GitHub releases, linked from the download page, including release notes for the version shown.
 
