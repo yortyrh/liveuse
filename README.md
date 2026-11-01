@@ -48,3 +48,7 @@ cd web
 pnpm install
 pnpm dev
 ```
+
+## License
+
+[MIT](LICENSE)
