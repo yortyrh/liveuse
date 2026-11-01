@@ -173,7 +173,7 @@ fn initialize(body: &Value) -> Value {
     json!({
         "protocolVersion": version,
         "capabilities": { "tools": { "listChanged": false } },
-        "serverInfo": { "name": "liveuse", "version": "0.2.0" }
+        "serverInfo": { "name": "liveuse", "version": "0.2.1" }
     })
 }
 
