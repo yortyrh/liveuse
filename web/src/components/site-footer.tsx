@@ -3,12 +3,13 @@
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { TextLink } from "@/components/primary-link";
-import { CASE_REPO, FIRMWARE_DOCS, RELEASES_REPO } from "@/lib/links";
+import { CASE_PRINT, CASE_REPO, FIRMWARE_DOCS, RELEASES_REPO } from "@/lib/links";
 
 const projects = [
   { href: `${RELEASES_REPO}/releases`, label: "App and firmware releases" },
   { href: FIRMWARE_DOCS, label: "Firmware guide" },
   { href: CASE_REPO, label: "LuLu case files" },
+  { href: CASE_PRINT, label: "LuLu on Creality Cloud" },
 ];
 
 const links = [

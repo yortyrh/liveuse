@@ -2,7 +2,7 @@ import Image from "next/image";
 import { Fragment, type ReactNode } from "react";
 import { TextLink } from "@/components/primary-link";
 import { formatBytes, getFirmware } from "@/lib/firmware";
-import { BOARD_WIKI, CASE_REPO, FIRMWARE_DOCS, RELEASES_REPO } from "@/lib/links";
+import { BOARD_WIKI, CASE_PRINT, CASE_REPO, FIRMWARE_DOCS, RELEASES_REPO } from "@/lib/links";
 
 const path = [
   {
@@ -128,6 +128,7 @@ export function HardwareSection() {
             ]}
           />
           <div className="flex flex-wrap gap-x-6 gap-y-3">
+            <TextLink href={CASE_PRINT}>Print it from Creality Cloud</TextLink>
             <TextLink href={CASE_REPO}>Case source on GitHub</TextLink>
             <TextLink href={BOARD_WIKI}>Seeed XIAO guide</TextLink>
           </div>

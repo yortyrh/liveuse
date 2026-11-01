@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Image from "next/image";
 import { SiteShell } from "@/components/site-shell";
-import { CASE_REPO, FIRMWARE_DOCS } from "@/lib/links";
+import { CASE_PRINT, CASE_REPO, FIRMWARE_DOCS } from "@/lib/links";
 
 export const metadata: Metadata = {
   title: "Help",
@@ -154,6 +154,10 @@ export default function HelpPage() {
               in{" "}
               <a className="font-semibold underline underline-offset-4" href={CASE_REPO}>
                 xiao-samd21-case
+              </a>
+              , and the model is ready to slice on{" "}
+              <a className="font-semibold underline underline-offset-4" href={CASE_PRINT}>
+                Creality Cloud
               </a>
               .
             </p>
