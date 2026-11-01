@@ -205,7 +205,7 @@ export function ScrollDirection({ connected }: { connected: boolean }) {
       <CardHeader>
         <CardTitle>Wheel direction</CardTitle>
         <CardDescription>
-          Positive has to scroll up on screen. If the system inverts the wheel, it is measured on the button and the XIAO compensates, including horizontally.
+          Positive has to scroll up on screen. If the system inverts the wheel, it is measured on the button and LuLu compensates, including horizontally.
         </CardDescription>
         <CardAction>
           <Badge variant={phase === "away" || inverted === null ? "secondary" : "default"}>{badge}</Badge>

@@ -313,7 +313,7 @@ pub(crate) fn tool_defs() -> Vec<Value> {
     push(
         &mut tools,
         "status",
-        "Status of the connected XIAO.",
+        "Status of the connected LuLu device.",
         object(&[], &[]),
     );
     push(

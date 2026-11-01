@@ -206,7 +206,7 @@ pub fn image_matches(bytes: &[u8], expected_sha: &str, expected_size: u64) -> Re
         return Err("The firmware file size does not match the manifest.".into());
     }
     if bytes.is_empty() || bytes.len() > APP_ROOM {
-        return Err("The firmware image does not fit the XIAO application region.".into());
+        return Err("The firmware image does not fit the LuLu application region.".into());
     }
     let actual = sha256::hex(&sha256::digest(bytes));
     if actual != expected_sha.to_ascii_lowercase() {
@@ -265,7 +265,7 @@ pub async fn fetch_manifest() -> Result<AcceptedBoard, String> {
         .build()
         .map_err(|err| err.to_string())?;
     let text = fetch_manifest_text(&client).await?;
-    matching_board(&text)?.ok_or_else(|| "No XIAO firmware in the published manifest.".into())
+    matching_board(&text)?.ok_or_else(|| "No LuLu firmware in the published manifest.".into())
 }
 
 pub async fn download_image(board: &AcceptedBoard) -> Result<Vec<u8>, String> {

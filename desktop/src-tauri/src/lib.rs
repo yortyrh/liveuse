@@ -222,7 +222,7 @@ fn identify(published: firmware::Version, confirmed: bool) -> Result<Identify, S
         match firmware::decide(seen, published, confirmed, tried_leave) {
             firmware::Decision::LeaveBootloader => {
                 let port =
-                    port.ok_or_else(|| "Connect the XIAO before writing firmware.".to_string())?;
+                    port.ok_or_else(|| "Connect LuLu before writing firmware.".to_string())?;
                 if let Some(err) = holders_error(std::slice::from_ref(&port.path)) {
                     return Err(err);
                 }
@@ -291,7 +291,7 @@ fn identify(published: firmware::Version, confirmed: bool) -> Result<Identify, S
             }
             firmware::Decision::PhysicalSteps => return Err(firmware::PHYSICAL_STEPS.into()),
             firmware::Decision::NotConnected => {
-                return Err("Connect the XIAO before writing firmware.".into());
+                return Err("Connect LuLu before writing firmware.".into());
             }
         }
     }

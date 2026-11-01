@@ -2,30 +2,32 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
-@import "@fontsource-variable/source-serif-4";
 @import "@fontsource-variable/jetbrains-mono";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1.00 0 0);
-  --foreground: oklch(0.32 0 0);
-  --card: oklch(1.00 0 0);
-  --card-foreground: oklch(0.32 0 0);
-  --popover: oklch(1.00 0 0);
-  --popover-foreground: oklch(0.32 0 0);
-  --primary: oklch(0.62 0.19 259.76);
-  --primary-foreground: oklch(1.00 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.45 0.03 257.68);
-  --muted: oklch(0.98 0 0);
-  --muted-foreground: oklch(0.55 0.02 264.41);
-  --accent: oklch(0.95 0.03 233.56);
-  --accent-foreground: oklch(0.38 0.14 265.59);
-  --destructive: oklch(0.64 0.21 25.39);
-  --border: oklch(0.93 0.01 261.82);
-  --input: oklch(0.93 0.01 261.82);
-  --ring: oklch(0.62 0.19 259.76);
+  --background: #eef2f7;
+  --foreground: #0e1626;
+  --card: #ffffff;
+  --card-foreground: #0e1626;
+  --popover: #ffffff;
+  --popover-foreground: #0e1626;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #e6ecf4;
+  --secondary-foreground: #1f2a40;
+  --muted: #e6ecf4;
+  --muted-foreground: #556074;
+  --accent: #e3ecfb;
+  --accent-foreground: #1d3f8a;
+  --destructive: oklch(0.58 0.21 25.39);
+  --border: #d4dce8;
+  --input: #d4dce8;
+  --ring: #2563eb;
+  --success: #16a34a;
+  --warning: #d97706;
+  --stage: radial-gradient(120% 90% at 30% 10%, #ffffff 0%, #e3eaf5 70%);
   --chart-1: oklch(0.62 0.19 259.76);
   --chart-2: oklch(0.55 0.22 262.96);
   --chart-3: oklch(0.49 0.22 264.43);
@@ -52,24 +54,27 @@
 }
 
 .dark {
-  --background: oklch(0.20 0 0);
-  --foreground: oklch(0.92 0 0);
-  --card: oklch(0.27 0 0);
-  --card-foreground: oklch(0.92 0 0);
-  --popover: oklch(0.27 0 0);
-  --popover-foreground: oklch(0.92 0 0);
-  --primary: oklch(0.62 0.19 259.76);
-  --primary-foreground: oklch(1.00 0 0);
-  --secondary: oklch(0.27 0 0);
-  --secondary-foreground: oklch(0.92 0 0);
-  --muted: oklch(0.27 0 0);
-  --muted-foreground: oklch(0.72 0 0);
-  --accent: oklch(0.38 0.14 265.59);
-  --accent-foreground: oklch(0.88 0.06 254.63);
-  --destructive: oklch(0.64 0.21 25.39);
-  --border: oklch(0.37 0 0);
-  --input: oklch(0.37 0 0);
-  --ring: oklch(0.62 0.19 259.76);
+  --background: #0a1120;
+  --foreground: #eef2f8;
+  --card: #111a2e;
+  --card-foreground: #eef2f8;
+  --popover: #15203a;
+  --popover-foreground: #eef2f8;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #18233d;
+  --secondary-foreground: #eef2f8;
+  --muted: #18233d;
+  --muted-foreground: #95a2b9;
+  --accent: #1b2c52;
+  --accent-foreground: #cfe0fb;
+  --destructive: oklch(0.68 0.19 25.39);
+  --border: #24324f;
+  --input: #24324f;
+  --ring: #3b82f6;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --stage: radial-gradient(120% 90% at 30% 10%, #1c2b4d 0%, #0f1a33 70%);
   --chart-1: oklch(0.71 0.14 254.69);
   --chart-2: oklch(0.62 0.19 259.76);
   --chart-3: oklch(0.55 0.22 262.96);
@@ -98,7 +103,6 @@
   --font-heading: var(--font-inter);
   --font-sans: var(--font-inter);
   --font-inter: "Inter Variable", sans-serif;
-  --font-source-serif-4: "Source Serif 4 Variable", serif;
   --font-jetbrains-mono: "JetBrains Mono Variable", monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -118,6 +122,8 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -162,7 +168,7 @@
   }
   :root {
     --font-heading: var(--font-inter);
-    --font-body: var(--font-source-serif-4);
+    --font-body: var(--font-inter);
     --font-mono: var(--font-jetbrains-mono);
   }
 
@@ -216,11 +222,17 @@
 
   body {
     font-family: var(--font-body);
-    line-height: 1.65;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv11", "ss01";
   }
 
   code,
   pre {
     font-family: var(--font-mono);
   }
+}
+
+.bg-stage {
+  background: var(--stage);
 }

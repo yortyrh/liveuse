@@ -41,4 +41,4 @@ The Rust tests do not need the XIAO:
 cargo test --manifest-path desktop/src-tauri/Cargo.toml
 ```
 
-The firmware CDC commands are in `README.md` of the `liveuse-firmware-xiao-samd21` repository.
+The firmware CDC commands, key names, and manual flashing are in the [`liveuse-releases`](https://github.com/yortyrh/liveuse-releases#readme) README. The firmware source is in `liveuse-firmware-xiao-samd21`.

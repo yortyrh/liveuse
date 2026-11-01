@@ -1,7 +1,10 @@
 import { listen } from "@tauri-apps/api/event";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import caseImage from "@/assets/case/assembled.png";
+import insideImage from "@/assets/case/board-in-base.png";
+import appIcon from "../src-tauri/icons/icon.svg";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -292,23 +295,26 @@ export function MainWindow() {
   return (
     <div className="mx-auto flex h-screen max-w-5xl flex-col gap-4 p-4">
       <header className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-medium">LiveUse</h1>
-          <p className="text-sm text-muted-foreground">
-            The local service starts only while the XIAO is connected. Closing the window leaves it in the menu bar.
-          </p>
+        <div className="flex min-w-0 items-center gap-3">
+          <img src={appIcon} alt="" className="size-10 shrink-0" />
+          <div className="min-w-0">
+            <h1 className="text-base leading-tight font-semibold tracking-tight">LiveUse</h1>
+            <p className="truncate text-xs text-muted-foreground">
+              The local service starts only while LuLu is connected. Closing the window leaves it in the menu bar.
+            </p>
+          </div>
         </div>
-        <Badge variant={device.connected ? "default" : "secondary"}>
+        <StatusPill tone={headerTone(device, flashing)}>
           {flashing
             ? "Updating"
             : device.connected
-              ? "XIAO connected"
+              ? "LuLu connected"
               : device.bootloader
                 ? "Bootloader"
                 : device.foreign
                   ? "Other firmware"
                   : "No device"}
-        </Badge>
+        </StatusPill>
       </header>
       <Tabs defaultValue="device" className="min-h-0 flex-1">
         <TabsList>
@@ -316,10 +322,26 @@ export function MainWindow() {
           <TabsTrigger value="share">Share</TabsTrigger>
           <TabsTrigger value="control">Control</TabsTrigger>
         </TabsList>
-        <TabsContent value="device" className="grid min-h-0 content-start gap-4 overflow-y-auto">
-          <Card>
+        <TabsContent value="device" className="min-h-0 overflow-y-auto">
+          <div className="grid content-start gap-4 pb-1">
+          <Card className="overflow-hidden py-0">
+            <div className="grid sm:grid-cols-[13rem_minmax(0,1fr)]">
+            <div className="flex flex-col items-center justify-center gap-3 bg-stage p-5">
+              <img
+                src={device.connected ? insideImage : caseImage}
+                alt={device.connected ? "LuLu with the lid off, the XIAO SAMD21 inside" : "LuLu"}
+                className={
+                  "h-auto drop-shadow-[0_12px_14px_rgba(8,20,48,0.3)] transition-[opacity,filter] duration-500 " +
+                  (device.connected ? "w-36" : "w-28 opacity-60 grayscale")
+                }
+              />
+              <span className="font-mono text-[11px] text-muted-foreground">
+                {device.connected ? "LuLu · XIAO SAMD21 inside" : "LuLu"}
+              </span>
+            </div>
+            <div className="grid gap-4 py-5">
             <CardHeader>
-              <CardTitle>XIAO</CardTitle>
+              <CardTitle>LuLu</CardTitle>
               <CardDescription>Mouse and keyboard over the USB cable, commands over the serial port.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-2 text-sm">
@@ -365,13 +387,16 @@ export function MainWindow() {
                 onReplace={() => setConfirmForeign(true)}
               />
             </CardContent>
+            </div>
+            </div>
           </Card>
+          {!device.connected && !device.bootloader && !device.foreign && !flashing ? <SetupHints /> : null}
           <Dialog open={confirmForeign} onOpenChange={(open) => !open && setConfirmForeign(false)}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Replace the program on this board?</DialogTitle>
                 <DialogDescription>
-                  This board is not running LiveUse. Writing replaces whatever is on it. Continue only if this is the XIAO you mean to overwrite. The pointer and keyboard stop until the board answers again.
+                  This board is not running LiveUse. Writing replaces whatever is on it. Continue only if this is the board you mean to turn into LuLu. The pointer and keyboard stop until the board answers again.
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
@@ -383,6 +408,7 @@ export function MainWindow() {
             </DialogContent>
           </Dialog>
           <ScrollDirection connected={device.connected} />
+          </div>
         </TabsContent>
         <TabsContent value="share" className="min-h-0">
           <Card>
@@ -501,7 +527,7 @@ export function MainWindow() {
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="truncate text-sm font-medium">{remoteSession.url}</span>
-                <Badge>Connected</Badge>
+                <StatusPill tone="ok">Connected</StatusPill>
               </div>
               <Button variant="outline" onClick={disconnectRemote}>
                 Disconnect
@@ -585,7 +611,7 @@ function FirmwareOfferBlock({
         <p>Published firmware {offer.available} is available.</p>
       ) : null}
       {offer.state === "published" && offer.available ? (
-        <p className="text-muted-foreground">Connect the XIAO to update.</p>
+        <p className="text-muted-foreground">Connect LuLu to update.</p>
       ) : null}
       {flashError ? <p className="text-destructive">{flashError}</p> : null}
       <div className="flex flex-wrap gap-2">
@@ -635,9 +661,75 @@ function phaseLabel(phase: string | undefined) {
 
 function StatusRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex items-center justify-between gap-4 border-t border-border/60 py-1 first:border-t-0">
       <span className="text-muted-foreground">{label}</span>
-      <span className="truncate text-right">{value}</span>
+      <span className="truncate text-right font-mono text-xs">{value}</span>
+    </div>
+  );
+}
+
+type Tone = "ok" | "busy" | "warn" | "off";
+
+function headerTone(device: DeviceStatus, flashing: boolean): Tone {
+  if (flashing) return "busy";
+  if (device.connected) return "ok";
+  if (device.bootloader || device.foreign) return "warn";
+  return "off";
+}
+
+const toneDot: Record<Tone, string> = {
+  ok: "bg-success",
+  busy: "bg-primary animate-pulse",
+  warn: "bg-warning",
+  off: "bg-muted-foreground/50",
+};
+
+function StatusPill({ tone, children }: { tone: Tone; children: string }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium shadow-xs">
+      <span className={"size-2 rounded-full " + toneDot[tone]} aria-hidden />
+      {children}
+    </span>
+  );
+}
+
+const hints = [
+  {
+    title: "LuLu",
+    body: "A printed case with a Seeed XIAO SAMD21 inside. Plug it in with a USB-C cable that carries data.",
+    link: "Build your LuLu",
+    url: "https://github.com/yortyrh/xiao-samd21-case",
+  },
+  {
+    title: "The firmware",
+    body: "Plug LuLu in. This tab writes the published LiveUse firmware.",
+    link: "Firmware guide",
+    url: "https://github.com/yortyrh/liveuse-releases#readme",
+  },
+  {
+    title: "The chip",
+    body: "A Seeed XIAO SAMD21. Other XIAO chips do not work in LuLu today.",
+    link: "Seeed XIAO guide",
+    url: "https://wiki.seeedstudio.com/Seeeduino-XIAO/",
+  },
+];
+
+function SetupHints() {
+  return (
+    <div className="grid gap-3 sm:grid-cols-3">
+      {hints.map((hint) => (
+        <div key={hint.title} className="grid content-start gap-1.5 rounded-xl border border-border bg-card p-4 text-sm">
+          <span className="font-medium">{hint.title}</span>
+          <p className="text-muted-foreground">{hint.body}</p>
+          <button
+            type="button"
+            className="w-fit cursor-pointer text-left text-primary underline-offset-4 hover:underline"
+            onClick={() => void openUrl(hint.url).catch((error: unknown) => toast.error(String(error)))}
+          >
+            {hint.link}
+          </button>
+        </div>
+      ))}
     </div>
   );
 }

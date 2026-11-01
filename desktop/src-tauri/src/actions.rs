@@ -145,7 +145,7 @@ impl AppState {
             && let Some(item) = item.as_ref()
         {
             let text = if view.connected {
-                "✓ XIAO connected"
+                "✓ LuLu connected"
             } else if view.bootloader {
                 "● Bootloader"
             } else if view.foreign {
