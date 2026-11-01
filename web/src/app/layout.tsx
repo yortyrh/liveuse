@@ -8,7 +8,7 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 const description =
-  "Download LiveUse for Mac. With a Seeed XIAO running the sketch, it publishes a mouse and keyboard API and MCP on your local network.";
+  "Download LiveUse for Mac. With LuLu plugged in, it publishes a mouse and keyboard API and MCP on your local network.";
 
 // Set SITE_URL in production so Open Graph and Twitter image URLs resolve to the public origin.
 const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";

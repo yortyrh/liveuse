@@ -15,9 +15,19 @@ export const questions = [
       "Screen recording, for the captures an agent needs. Incoming connections, so the API can listen on your local network.",
   },
   {
-    question: "Which board does it need?",
+    question: "What is LuLu?",
     answer:
-      "Today, a Seeed XIAO SAMD21 with the sketch running. The bootloader does not start the service. Other boards are being explored, and a smaller board that plugs straight into the computer is in its first steps.",
+      "LuLu is the USB device LiveUse drives. It is a printed case with a Seeed XIAO SAMD21 inside, running the LiveUse firmware. The bootloader does not start the service. Other boards are being explored, and a smaller device that plugs straight into the computer is in its first steps.",
+  },
+  {
+    question: "Do I flash LuLu myself?",
+    answer:
+      "No. The Device tab checks the published firmware and writes it, or updates it. The image and its checksum are also public, with bossac instructions, in the liveuse-releases repository.",
+  },
+  {
+    question: "How do I build LuLu?",
+    answer:
+      "Print the two-part case in PLA or PETG, without supports, and press the XIAO SAMD21 into it. LuLu measures 25.0 by 21.6 by 8.9 mm, and the USB-C stays open. The 3MF and STL files are in the xiao-samd21-case repository.",
   },
   {
     question: "Who can move the cursor?",

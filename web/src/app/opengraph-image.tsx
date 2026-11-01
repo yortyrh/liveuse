@@ -9,7 +9,7 @@ export default function OpenGraphImage() {
     (
       <div
         style={{
-          background: "#ffffff",
+          background: "linear-gradient(135deg, #0e1730 0%, #1b2b55 100%)",
           width: "100%",
           height: "100%",
           display: "flex",
@@ -18,7 +18,10 @@ export default function OpenGraphImage() {
           padding: "80px",
         }}
       >
-        <div style={{ fontSize: 32, fontWeight: 600, color: "#171717" }}>LiveUse</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          <div style={{ width: 90, height: 8, background: "#4f8ff0" }} />
+          <div style={{ fontSize: 32, fontWeight: 600, color: "#8ab8f5" }}>LiveUse</div>
+        </div>
         <div
           style={{
             display: "flex",
@@ -29,8 +32,11 @@ export default function OpenGraphImage() {
             letterSpacing: "-1px",
           }}
         >
-          <div style={{ color: "#000000" }}>The local pointer</div>
-          <div style={{ color: "#666666" }}>for an agent on your Mac</div>
+          <div style={{ color: "#ffffff" }}>The local pointer</div>
+          <div style={{ color: "#4f8ff0" }}>for an agent on your Mac</div>
+          <div style={{ marginTop: 32, fontSize: 28, fontWeight: 400, color: "#9fb0cf" }}>
+            macOS app · LuLu, the USB device · firmware
+          </div>
         </div>
       </div>
     ),

@@ -11,11 +11,12 @@ import { cn } from "@/lib/utils";
 const links = [
   { href: "/#download", id: "download", label: "Download" },
   { href: "/#setup", id: "setup", label: "Setup" },
+  { href: "/#lulu", id: "lulu", label: "LuLu" },
   { href: "/#questions", id: "questions", label: "Questions" },
   { href: "/help", id: "help", label: "Help" },
 ];
 
-const delays = ["delay-100", "delay-150", "delay-200", "delay-300"];
+const delays = ["delay-100", "delay-150", "delay-200", "delay-300", "delay-500"];
 
 export function SiteNav() {
   const pathname = usePathname();
@@ -118,7 +119,7 @@ export function SiteNav() {
       <div className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center">
         <nav
           aria-label="Main"
-          className="pointer-events-auto mt-6 flex w-max items-center gap-2 rounded-full border border-border bg-[#f7f4ee] px-2 py-2 shadow-sm dark:bg-[#181818]"
+          className="pointer-events-auto mt-6 flex w-max items-center gap-2 rounded-full border border-border bg-card/85 px-2 py-2 shadow-sm backdrop-blur-xl"
         >
           <Link
             href="/"
@@ -175,7 +176,7 @@ export function SiteNav() {
         <div
           id={menuId}
           className={cn(
-            "fixed inset-0 z-40 flex flex-col items-center justify-center gap-8 bg-white/80 backdrop-blur-3xl dark:bg-black/80",
+            "fixed inset-0 z-40 flex flex-col items-center justify-center gap-8 bg-background/85 backdrop-blur-3xl",
             motion,
             shown ? "opacity-100" : "opacity-0",
           )}

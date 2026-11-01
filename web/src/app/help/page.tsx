@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Image from "next/image";
 import { SiteShell } from "@/components/site-shell";
-import { XiaoBoard } from "@/components/xiao-board";
+import { CASE_REPO, FIRMWARE_DOCS } from "@/lib/links";
 
 export const metadata: Metadata = {
   title: "Help",
   description:
-    "Use LiveUse on the Mac with the board, or drive that pointer from another computer on the same network.",
+    "Use LiveUse on the Mac with LuLu, or drive that pointer from another computer on the same network.",
 };
 
 export default function HelpPage() {
@@ -21,7 +21,7 @@ export default function HelpPage() {
         <header className="flex max-w-[680px] flex-col gap-4">
           <h1 className="text-4xl font-semibold text-balance">Use the pointer</h1>
           <p className="text-pretty text-lg">
-            On the Mac with the Seeed XIAO, LiveUse talks to the board over USB. On any other
+            On the Mac with LuLu, LiveUse talks to it over USB. On any other
             computer on that network, the same pointer is an API and an MCP, gated by the token.
           </p>
         </header>
@@ -30,15 +30,15 @@ export default function HelpPage() {
           <div className="flex max-w-[680px] flex-col gap-4">
             <h2 className="text-3xl font-semibold">On this Mac</h2>
             <p className="text-pretty text-lg">
-              Plug in the board with the sketch running. The Device tab should say Connected, and
+              Plug in LuLu with the firmware running. The Device tab should say Connected, and
               the service should be listening. The bootloader does not start the service. When a
-              newer firmware is published, this tab writes it onto the board.
+              newer firmware is published, this tab writes it onto LuLu.
             </p>
           </div>
           <Shot
             src="/help/device.png"
-            alt="LiveUse Device tab with the XIAO connected and a firmware update ready to install."
-            caption="The board is connected, and a published firmware update is ready to write."
+            alt="LiveUse Device tab with LuLu connected and a firmware update ready to install."
+            caption="LuLu is connected, and a published firmware update is ready to write."
             width={1960}
             height={1520}
           />
@@ -60,7 +60,7 @@ export default function HelpPage() {
           <div className="flex max-w-[680px] flex-col gap-4">
             <h2 className="text-3xl font-semibold">From another computer</h2>
             <p className="text-pretty text-lg">
-              The Share tab on the Mac with the board shows the API URL, the token, and the MCP
+              The Share tab on the Mac with LuLu shows the API URL, the token, and the MCP
               configuration. Anyone with that token on the local network can move the cursor and
               the keyboard. Issue a new token there when you want the old one to stop.
             </p>
@@ -68,7 +68,7 @@ export default function HelpPage() {
           <Shot
             src="/help/share.png"
             alt="LiveUse Share tab with an example URL, an example token, and an MCP configuration."
-            caption="Copy these from the Mac with the board. The values on your machine will differ."
+            caption="Copy these from the Mac with LuLu. The values on your machine will differ."
             width={1960}
             height={1520}
           />
@@ -114,7 +114,7 @@ export default function HelpPage() {
         <section className="flex max-w-[680px] flex-col gap-6">
           <h2 className="text-3xl font-semibold">A cluster</h2>
           <p className="text-pretty text-lg">
-            Each Mac that should be driven needs its own board, its own LiveUse, and its own token.
+            Each Mac that should be driven needs its own LuLu, its own LiveUse, and its own token.
             Give every server a name in the agent config. The agent then chooses which pointer to
             use.
           </p>
@@ -126,20 +126,88 @@ export default function HelpPage() {
         </section>
 
         <section className="grid items-start gap-8 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)] md:gap-12">
-          <div className="w-full max-w-[280px] overflow-hidden rounded-2xl bg-white shadow-md">
-            <XiaoBoard className="h-auto w-full" />
+          <div className="flex w-full max-w-[280px] items-center justify-center rounded-2xl bg-stage p-6">
+            <Image
+              src="/case/board-in-base.png"
+              alt="LuLu with the lid off: the Seeed XIAO SAMD21 seated in the base."
+              width={900}
+              height={824}
+              sizes="280px"
+              className="h-auto w-full drop-shadow-[0_12px_18px_rgba(8,20,48,0.25)]"
+            />
           </div>
           <div className="flex max-w-[680px] flex-col gap-4">
-            <h2 className="text-3xl font-semibold">The board</h2>
+            <h2 className="text-3xl font-semibold">LuLu</h2>
             <p className="text-pretty text-lg">
-              Today the sketch runs on a Seeed XIAO SAMD21. It uses FreeRTOS.
+              LuLu is a printed case with a Seeed XIAO SAMD21 inside. One USB-C cable shows up as
+              a HID mouse, a boot keyboard, and a serial port. A single Arduino loop reads one line and
+              runs it. There is no RTOS.
+            </p>
+            <p className="text-pretty text-base">
+              With the firmware running, LuLu reports USB id <code className="font-mono">2886:802F</code>{" "}
+              and the product name LiveUse. In the bootloader it reports{" "}
+              <code className="font-mono">2886:002F</code>, Seeeduino XIAO. To enter the bootloader by
+              hand, short the two RST pads twice in a row.
+            </p>
+            <p className="text-pretty text-base">
+              The case prints in two parts without supports. The files and the print settings are
+              in{" "}
+              <a className="font-semibold underline underline-offset-4" href={CASE_REPO}>
+                xiao-samd21-case
+              </a>
+              .
             </p>
             <p className="text-pretty text-base">
               This is a work in progress. Other boards are being explored, and the first steps are
-              underway for a smaller board that plugs straight into the computer. The desktop app
+              underway for a smaller device that plugs straight into the computer. The desktop app
               is macOS for now. Linux and Windows are in progress.
             </p>
           </div>
+        </section>
+
+        <section id="serial" className="flex scroll-mt-24 flex-col gap-8">
+          <div className="flex max-w-[680px] flex-col gap-4">
+            <h2 className="text-3xl font-semibold">The serial port</h2>
+            <p className="text-pretty text-lg">
+              LiveUse speaks to LuLu in plain lines over its serial port, at 115200 baud. You
+              can do the same from a terminal or your own program while LiveUse is closed. The port
+              cannot be shared.
+            </p>
+            <p className="text-pretty text-base">
+              One line is one command, ending in LF or CRLF. The command word is case-insensitive.
+              Mouse and keyboard commands finish with a line that ends in{" "}
+              <code className="font-mono">done</code>. A line longer than 95 characters answers{" "}
+              <code className="font-mono">ERR line too long</code>.
+            </p>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <thead className="bg-muted/60 text-muted-foreground">
+                <tr>
+                  <th scope="col" className="px-4 py-3 font-semibold">Command</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">What it does</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {serialCommands.map(([command, action]) => (
+                  <tr key={command}>
+                    <td className="px-4 py-3 align-top font-mono text-xs whitespace-nowrap">{command}</td>
+                    <td className="px-4 py-3 text-pretty">{action}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Sample>{serialExample}</Sample>
+          <p className="max-w-[680px] text-pretty text-base">
+            Key names, error replies, manual flashing with bossac at{" "}
+            <code className="font-mono">0x2000</code>, and example scripts in Python and Web
+            Serial are in the{" "}
+            <a className="font-semibold underline underline-offset-4" href={FIRMWARE_DOCS}>
+              firmware guide
+            </a>
+            .
+          </p>
         </section>
 
         <section className="flex max-w-[680px] flex-col gap-6">
@@ -247,3 +315,26 @@ const clickExample = `curl -H "Authorization: Bearer exampletoken" \\
 const shotExample = `curl -H "Authorization: Bearer exampletoken" \\
   -o screen.png \\
   http://192.168.1.20:8765/v1/screenshot`;
+
+const serialCommands: [string, string][] = [
+  ["HELP or ?", "List the commands."],
+  ["STATUS", "Uptime and version: OK uptime_ms=<ms> fw=<version>."],
+  ["ECHO <text>", "Send the text back. A line that is not a command is echoed too."],
+  ["MOVE <dx> <dy>", "Glide the pointer in small steps. Positive dx is right, positive dy is down. Each axis is clamped to ±2000."],
+  ["CLICK left|right|double", "Click. double is two left clicks."],
+  ["MDOWN / MUP left|right|middle", "Hold or release a button. MOVE while held drags."],
+  ["SCROLL <steps>", "Vertical wheel. Positive is up, negative is down."],
+  ["HSCROLL <steps>", "Horizontal wheel. Positive is right, negative is left."],
+  ["TYPE <ascii>", "Type printable ASCII. Prints nothing on success."],
+  ["KEY <chord>", "Tap one key with optional modifiers, like cmd+shift+a."],
+  ["KDOWN / KUP <key>", "Hold or release a key. Up to 6 keys at once."],
+  ["HOTKEY <k1+k2+…>", "Press the steps in order, then release them in reverse."],
+];
+
+const serialExample = `screen /dev/cu.usbmodem1101 115200
+
+STATUS
+OK uptime_ms=18420 fw=0.5.10
+MOVE 80 0
+MOVE 80 0
+MOVE done`;
