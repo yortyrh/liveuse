@@ -42,7 +42,7 @@ Installers are one disk image for Intel and one for Apple Silicon. The site read
 - When a build is not signed, the first open is a right-click and Open.
 - Useful remote calls include screenshot, click, move_to, write, and scroll. Coordinates start at the top left of the primary display.
 
-Undecided: the homepage says the sketch uses FreeRTOS. `firmware/README.md` says there is no RTOS. That claim was not resolved.
+Undecided: the homepage says the sketch uses FreeRTOS. the firmware repository README says there is no RTOS. That claim was not resolved.
 
 ## Brand Commitments
 
@@ -53,7 +53,7 @@ The name is LiveUse. The site voice is English, in short concrete sentences. No 
 - Download, setup, and FAQ copy in `web/src/app/page.tsx` and `web/src/lib/faq.ts`.
 - Help copy and screenshots: `web/public/help/device.png`, `web/public/help/control-opus.png`, `web/public/help/share.png`, `web/public/help/remote-form.png`, `web/public/help/device-hero.png`.
 - Board photos: `web/public/xiao-samd21.png`, `web/public/xiao-samd21-angle.png`. Mark: `web/public/logo.svg`.
-- Product behavior in `desktop/README.md` and `firmware/README.md`.
+- Product behavior in `desktop/README.md` and the firmware repository README.
 - Public GitHub releases, linked from the download page, including release notes for the version shown.
 
 No testimonials, customers, benchmarks, pricing, or licensing claims exist. Do not invent them.

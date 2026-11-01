@@ -72,7 +72,6 @@ def app_fixture(root, app_version="0.1.0"):
         'const LEGACY: &str = "0.1.0";\n'
         '        "serverInfo": { "name": "liveuse", "version": "%s" }\n' % app_version,
     )
-    write(root, "firmware/VERSION", "0.5.8\n")
 
 
 def commit_all(root, message="initial"):
@@ -206,29 +205,10 @@ class ApplyTest(unittest.TestCase):
     def test_current_and_next_do_not_write(self):
         code, stdout, _stderr = run_cli(self.root, ["current", "app"])
         self.assertEqual((code, stdout), (0, "0.1.0\n"))
-        code, stdout, _stderr = run_cli(self.root, ["next", "firmware", "minor"])
-        self.assertEqual((code, stdout), (0, "0.6.0\n"))
-        self.assertEqual((self.root / "firmware/VERSION").read_text(encoding="utf-8"), "0.5.8\n")
+        code, stdout, _stderr = run_cli(self.root, ["next", "app", "minor"])
+        self.assertEqual((code, stdout), (0, "0.2.0\n"))
         self.assertEqual(head_count(self.root), 1)
         self.assertEqual(porcelain(self.root), "")
-
-    def test_firmware_patch_writes_version_without_committing(self):
-        code, stdout, _stderr = run_cli(self.root, ["firmware", "patch"])
-        self.assertEqual((code, stdout), (0, "0.5.9\n"))
-        self.assertEqual((self.root / "firmware/VERSION").read_text(encoding="utf-8"), "0.5.9\n")
-        self.assertEqual(head_count(self.root), 1)
-        self.assertIn("firmware/VERSION", porcelain(self.root))
-
-    def test_firmware_allows_version_files_and_refuses_other_dirt(self):
-        write(self.root, "firmware/CHANGELOG.md", "# Changelog\n")
-        code, stdout, _stderr = run_cli(self.root, ["firmware", "major"])
-        self.assertEqual((code, stdout), (0, "1.0.0\n"))
-        self.assertEqual(head_count(self.root), 1)
-
-        write(self.root, "notes.txt", "nope\n")
-        with self.assertRaises(SystemExit):
-            run_cli(self.root, ["firmware", "patch"])
-        self.assertEqual((self.root / "firmware/VERSION").read_text(encoding="utf-8"), "1.0.0\n")
 
 
 if __name__ == "__main__":

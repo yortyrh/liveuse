@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Read, calculate, and write the LiveUse app or firmware version.
+"""Read, calculate, and write the LiveUse app version.
 
-app-release and firmware-release call this. With no part, the patch
-number increments. patch, minor, and major increment that component.
-mayor is major. X.Y.Z sets that version.
+app-release calls this. With no part, the patch number increments. patch,
+minor, and major increment that component. mayor is major. X.Y.Z sets that
+version.
 
 current and next only print. app writes the app version files and commits
-them. firmware writes firmware/VERSION and leaves the commit to
-firmware/scripts/release.py.
+them.
 """
 
 import argparse
@@ -39,13 +38,6 @@ APP_FIELDS = (
     ("desktop/src-tauri/Cargo.lock", LOCK_VERSION_RE),
     ("desktop/src-tauri/src/mcp.rs", MCP_VERSION_RE),
 )
-FIRMWARE_VERSION_FILES = (
-    "firmware/VERSION",
-    "firmware/src/main.cpp",
-    "firmware/README.md",
-    "firmware/CHANGELOG.md",
-)
-
 
 def fail(message):
     print(message, file=sys.stderr)
@@ -112,18 +104,10 @@ def read_app_version(root):
     return version
 
 
-def read_firmware_version(root):
-    version = read_text(root / "firmware" / "VERSION").strip()
-    version_tuple(version)
-    return version
-
-
 def read_version(root, target):
     if target == "app":
         return read_app_version(root)
-    if target == "firmware":
-        return read_firmware_version(root)
-    fail(f"The target has to be app or firmware, not {target!r}.")
+    fail(f"The target has to be app, not {target!r}.")
 
 
 def git_run(root, args):
@@ -163,16 +147,6 @@ def require_app_tree(root):
         )
 
 
-def require_firmware_tree(root):
-    extra = [path for path in dirty_paths(root) if path not in FIRMWARE_VERSION_FILES]
-    if extra:
-        joined = ", ".join(extra)
-        fail(
-            "The working tree has changes outside the firmware version files. "
-            f"Commit or stash them before changing the firmware version: {joined}"
-        )
-
-
 def write_app_version(root, new):
     paths = []
     for relative, pattern in APP_FIELDS:
@@ -181,11 +155,6 @@ def write_app_version(root, new):
         path.write_text(updated, encoding="utf-8")
         paths.append(relative)
     return paths
-
-
-def write_firmware_version(root, new):
-    path = root / "firmware" / "VERSION"
-    path.write_text(new + "\n", encoding="utf-8")
 
 
 def commit_app(root, new, paths):
@@ -206,17 +175,7 @@ def apply_version(root, target, part="patch"):
         paths = write_app_version(root, new)
         commit_app(root, new, paths)
         return new
-    if target == "firmware":
-        require_firmware_tree(root)
-        current = read_firmware_version(root)
-        new = resolve_version(current, part)
-        if new == current:
-            print(f"Already {current}.", file=sys.stderr)
-            return current
-        write_firmware_version(root, new)
-        print(f"Wrote firmware/VERSION {current} -> {new}.", file=sys.stderr)
-        return new
-    fail(f"The target has to be app or firmware, not {target!r}.")
+    fail(f"The target has to be app, not {target!r}.")
 
 
 def main(argv=None, root=None):
@@ -224,7 +183,7 @@ def main(argv=None, root=None):
     parser = argparse.ArgumentParser(
         prog="version.py",
         description=(
-            "Read, calculate, and write the app or firmware version. "
+            "Read, calculate, and write the app version. "
             "patch, minor, and major increment that component. "
             "mayor is major. X.Y.Z sets that version. "
             "With no part, the patch number increments."
@@ -232,7 +191,7 @@ def main(argv=None, root=None):
     )
     sub = parser.add_subparsers(dest="action", required=True)
 
-    for name in ("app", "firmware"):
+    for name in ("app",):
         command = sub.add_parser(name, help=f"Write the next {name} version.")
         command.add_argument(
             "part",
@@ -243,11 +202,11 @@ def main(argv=None, root=None):
         command.set_defaults(target=name, mode="apply")
 
     current = sub.add_parser("current", help="Print the current version.")
-    current.add_argument("target", choices=("app", "firmware"))
+    current.add_argument("target", choices=("app",))
     current.set_defaults(mode="current")
 
     upcoming = sub.add_parser("next", help="Print the next version without writing it.")
-    upcoming.add_argument("target", choices=("app", "firmware"))
+    upcoming.add_argument("target", choices=("app",))
     upcoming.add_argument("part", nargs="?", default="patch")
     upcoming.set_defaults(mode="next")
 
