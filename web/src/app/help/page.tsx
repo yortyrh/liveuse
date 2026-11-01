@@ -52,7 +52,7 @@ export default function HelpPage() {
             alt="LiveUse Control tab with Anthropic and Claude Opus 5.5 selected."
             caption="This machine, with Anthropic and Claude Opus 5.5."
             width={1960}
-            height={470}
+            height={1520}
           />
         </section>
 
@@ -107,7 +107,7 @@ export default function HelpPage() {
             alt="LiveUse Control tab set to Remote, with fields for the other computer URL and token."
             caption="Remote is how one LiveUse window drives another Mac on the network."
             width={1960}
-            height={820}
+            height={640}
           />
         </section>
 
