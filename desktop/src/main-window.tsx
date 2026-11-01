@@ -4,14 +4,25 @@ import caseImage from "@/assets/case/assembled.png";
 import insideImage from "@/assets/case/board-in-base.png";
 import appIcon from "../src-tauri/icons/icon.svg";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Tabs as TabsPrimitive } from "@base-ui/react/tabs";
+import {
+  Cable,
+  Check,
+  Copy,
+  ExternalLink,
+  MousePointer2,
+  RefreshCw,
+  Settings2,
+  ShieldAlert,
+  Share2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { ScrollDirection } from "@/components/scroll-direction";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { AgentChat } from "@/components/agent-chat";
 import { ModelPicker } from "@/components/model-picker";
 import {
@@ -292,90 +303,65 @@ export function MainWindow() {
     }
   }
 
+  const state = deviceState(device, flashing);
+  const headline = STATE_COPY[state];
+  const idle = !device.connected && !device.bootloader && !device.foreign && !flashing;
+
   return (
-    <div className="mx-auto flex h-screen max-w-5xl flex-col gap-4 p-4">
-      <header className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <img src={appIcon} alt="" className="size-10 shrink-0" />
-          <div className="min-w-0">
-            <h1 className="text-base leading-tight font-semibold tracking-tight">LiveUse</h1>
-            <p className="truncate text-xs text-muted-foreground">
-              The local service starts only while LuLu is connected. Closing the window leaves it in the menu bar.
-            </p>
-          </div>
+    <Tabs orientation="vertical" defaultValue="device" className="h-dvh gap-0">
+      <aside className="flex w-16 shrink-0 flex-col gap-6 border-r border-border bg-card/70 p-2.5 min-[900px]:w-60 min-[900px]:p-4">
+        <div className="flex items-center gap-3 min-[900px]:px-1">
+          <img src={appIcon} alt="" className="size-11 shrink-0" />
+          <span className="hidden text-lg font-semibold tracking-tight min-[900px]:inline">LiveUse</span>
         </div>
-        <StatusPill tone={headerTone(device, flashing)}>
-          {flashing
-            ? "Updating"
-            : device.connected
-              ? "LuLu connected"
-              : device.bootloader
-                ? "Bootloader"
-                : device.foreign
-                  ? "Other firmware"
-                  : "No device"}
-        </StatusPill>
-      </header>
-      <Tabs defaultValue="device" className="min-h-0 flex-1">
-        <TabsList>
-          <TabsTrigger value="device">Device</TabsTrigger>
-          <TabsTrigger value="share">Share</TabsTrigger>
-          <TabsTrigger value="control">Control</TabsTrigger>
-        </TabsList>
+        <TabsPrimitive.List aria-label="Sections" className="flex flex-col gap-1">
+          <NavTab value="device" icon={<Cable />}>
+            Device
+          </NavTab>
+          <NavTab value="share" icon={<Share2 />}>
+            Share
+          </NavTab>
+          <NavTab value="control" icon={<MousePointer2 />}>
+            Control
+          </NavTab>
+        </TabsPrimitive.List>
+        <div className="mt-auto grid gap-3">
+          <StatusPill tone={headerTone(device, flashing)} label={headline.pill} />
+          <p className="hidden text-xs leading-relaxed text-muted-foreground min-[900px]:block">
+            The local service runs while LuLu is connected. Closing the window leaves LiveUse in the menu bar.
+          </p>
+        </div>
+      </aside>
+      <main className="flex min-w-0 flex-1 flex-col">
         <TabsContent value="device" className="min-h-0 overflow-y-auto">
-          <div className="grid content-start gap-4 pb-1">
-          <Card className="overflow-hidden py-0">
-            <div className="grid sm:grid-cols-[13rem_minmax(0,1fr)]">
-            <div className="flex flex-col items-center justify-center gap-3 bg-stage p-5">
+          <div className="mx-auto grid w-full max-w-[88rem] gap-5 p-5 min-[1100px]:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] min-[1100px]:p-8">
+            <section
+              aria-labelledby="device-headline"
+              className="relative flex min-h-[20rem] flex-col items-center justify-center gap-5 overflow-hidden rounded-2xl bg-stage px-6 py-10 text-center ring-1 ring-foreground/10 min-[1100px]:sticky min-[1100px]:top-8 min-[1100px]:h-[calc(100dvh-4rem)] min-[1100px]:self-start"
+            >
               <img
                 src={device.connected ? insideImage : caseImage}
                 alt={device.connected ? "LuLu with the lid off, the XIAO SAMD21 inside" : "LuLu"}
-                className={
-                  "h-auto drop-shadow-[0_12px_14px_rgba(8,20,48,0.3)] transition-[opacity,filter] duration-500 " +
-                  (device.connected ? "w-36" : "w-28 opacity-60 grayscale")
-                }
+                className={cn(
+                  "h-auto w-[clamp(8rem,24vw,19rem)] drop-shadow-[0_18px_22px_rgba(8,20,48,0.32)] transition-[opacity,filter] duration-500",
+                  !device.connected && "opacity-60 grayscale",
+                )}
               />
-              <span className="font-mono text-[11px] text-muted-foreground">
-                {device.connected ? "LuLu · XIAO SAMD21 inside" : "LuLu"}
-              </span>
-            </div>
-            <div className="grid gap-4 py-5">
-            <CardHeader>
-              <CardTitle>LuLu</CardTitle>
-              <CardDescription>Mouse and keyboard over the USB cable, commands over the serial port.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-2 text-sm">
-              <StatusRow
-                label="Status"
-                value={
-                  device.connected
-                    ? "Connected"
-                    : device.bootloader
-                      ? "Bootloader"
-                      : device.foreign
-                        ? "Other firmware"
-                        : "Disconnected"
-                }
-              />
-              <StatusRow label="Port" value={device.path || "—"} />
-              <StatusRow label="Firmware" value={device.firmware || "—"} />
-              <StatusRow
-                label="Uptime"
-                value={device.uptime_ms != null ? `${Math.round(device.uptime_ms / 1000)} s` : "—"}
-              />
-              <StatusRow label="Service" value={share?.listening ? `listening on port ${share.port}` : "stopped"} />
-              {device.error ? <p className="text-destructive">{device.error}</p> : null}
-              {share?.serverError ? <p className="text-destructive">{share.serverError}</p> : null}
-              <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={flashing || checkingFirmware}
-                  onClick={() => void checkFirmwareUpdates()}
-                >
-                  {checkingFirmware ? "Checking…" : "Check for firmware updates"}
-                </Button>
+              <div
+                className="relative h-px w-[clamp(6rem,14vw,12rem)] overflow-hidden bg-foreground/15"
+                aria-hidden
+              >
+                {device.connected ? (
+                  <span className="cable-pulse absolute inset-y-0 left-0 w-1/4 bg-primary" />
+                ) : null}
               </div>
+              <div className="grid max-w-md gap-1.5">
+                <h2 id="device-headline" className="text-[1.75rem] leading-tight font-semibold tracking-tight">
+                  {headline.title}
+                </h2>
+                <p className="text-sm text-muted-foreground">{headline.body}</p>
+              </div>
+              {device.error ? <p className="max-w-md text-sm text-destructive">{device.error}</p> : null}
               <FirmwareOfferBlock
                 offer={offer}
                 flashing={flashing}
@@ -386,11 +372,41 @@ export function MainWindow() {
                 onWrite={() => void writeFirmware(false)}
                 onReplace={() => setConfirmForeign(true)}
               />
-            </CardContent>
+            </section>
+            <div className="grid content-start gap-5">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Details</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-1 text-sm">
+                  <StatusRow label="Port" value={device.path || "—"} />
+                  <StatusRow label="Firmware" value={device.firmware || "—"} />
+                  <StatusRow
+                    label="Uptime"
+                    value={device.uptime_ms != null ? `${Math.round(device.uptime_ms / 1000)} s` : "—"}
+                  />
+                  <StatusRow
+                    label="Service"
+                    value={share?.listening ? `listening on port ${share.port}` : "stopped"}
+                  />
+                  {share?.serverError ? <p className="pt-2 text-destructive">{share.serverError}</p> : null}
+                  <div className="flex flex-wrap gap-2 pt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={flashing || checkingFirmware}
+                      onClick={() => void checkFirmwareUpdates()}
+                    >
+                      <RefreshCw className={cn(checkingFirmware && "animate-spin")} />
+                      {checkingFirmware ? "Checking…" : "Check for firmware updates"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              {idle ? <SetupHints /> : null}
+              <ScrollDirection connected={device.connected} />
             </div>
-            </div>
-          </Card>
-          {!device.connected && !device.bootloader && !device.foreign && !flashing ? <SetupHints /> : null}
+          </div>
           <Dialog open={confirmForeign} onOpenChange={(open) => !open && setConfirmForeign(false)}>
             <DialogContent>
               <DialogHeader>
@@ -407,48 +423,83 @@ export function MainWindow() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <ScrollDirection connected={device.connected} />
-          </div>
         </TabsContent>
-        <TabsContent value="share" className="min-h-0">
-          <Card>
-            <CardHeader>
-              <CardTitle>Local network</CardTitle>
-              <CardDescription>
-                These credentials are read here, on the physical machine. Anyone with the token on the LAN can move the mouse and the keyboard.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="grid gap-2">
-                <span className="text-sm font-medium">API URL</span>
-                {share?.urls.length ? (
-                  share.urls.map((url, index) => (
-                    <div key={url} className="flex gap-2">
-                      <Button
-                        variant={index === urlIndex ? "default" : "outline"}
-                        onClick={() => setUrlIndex(index)}
-                      >
-                        {url}
-                      </Button>
-                      <Button variant="outline" onClick={() => void copy(url, "URL")}>
-                        Copy
-                      </Button>
+
+        <TabsContent value="share" className="min-h-0 overflow-y-auto">
+          <div className="mx-auto grid w-full max-w-[88rem] gap-5 p-5 min-[1100px]:grid-cols-2 min-[1100px]:p-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Connect from another computer</CardTitle>
+                <CardDescription>
+                  Enter the URL and the token in LiveUse on that computer, or in any agent that calls the API.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-5">
+                <div className="flex items-start gap-2.5 rounded-lg bg-warning/10 p-3 text-sm text-foreground">
+                  <ShieldAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+                  <p>Anyone on this network with the token can move the mouse and use the keyboard.</p>
+                </div>
+                <div className="grid gap-2">
+                  <span className="text-sm font-medium" id="share-url-label">
+                    API URL
+                  </span>
+                  {share?.urls.length ? (
+                    <div role="radiogroup" aria-labelledby="share-url-label" className="grid gap-1.5">
+                      {share.urls.map((url, index) => {
+                        const selected = index === urlIndex;
+                        return (
+                          <div key={url} className="flex gap-1.5">
+                            <button
+                              type="button"
+                              role="radio"
+                              aria-checked={selected}
+                              onClick={() => setUrlIndex(index)}
+                              className={cn(
+                                "flex h-9 min-w-0 flex-1 items-center justify-between gap-2 rounded-lg border px-3 font-mono text-xs outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50",
+                                selected
+                                  ? "border-primary bg-accent text-accent-foreground"
+                                  : "border-border hover:bg-muted",
+                              )}
+                            >
+                              <span className="truncate">{url}</span>
+                              {selected ? <Check className="size-3.5 shrink-0" aria-hidden /> : null}
+                            </button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-9 w-9"
+                              aria-label={`Copy ${url}`}
+                              onClick={() => void copy(url, "URL")}
+                            >
+                              <Copy />
+                            </Button>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">No local-network IP yet.</p>
-                )}
-              </div>
-              <Separator />
-              <div className="grid gap-2">
-                <span className="text-sm font-medium">Token</span>
-                <div className="flex gap-2">
-                  <Input readOnly value={share?.token ?? ""} />
-                  <Button variant="outline" onClick={() => share && void copy(share.token, "Token")}>
-                    Copy
-                  </Button>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No local-network address yet. Connect this Mac to a network.</p>
+                  )}
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="share-token" className="text-sm font-medium">
+                    Token
+                  </label>
+                  <div className="flex gap-1.5">
+                    <Input id="share-token" readOnly value={share?.token ?? ""} className="h-9 font-mono text-xs" />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9"
+                      aria-label="Copy token"
+                      onClick={() => share && void copy(share.token, "Token")}
+                    >
+                      <Copy />
+                    </Button>
+                  </div>
                   <Button
                     variant="secondary"
+                    className="w-fit"
                     onClick={() =>
                       void regenerateToken()
                         .then((next) => {
@@ -458,121 +509,223 @@ export function MainWindow() {
                         .catch((error: unknown) => toast.error(String(error)))
                     }
                   >
-                    Regenerate
+                    <RefreshCw />
+                    Generate a new token
                   </Button>
                 </div>
-              </div>
-              <div className="grid gap-2">
-                <span className="text-sm font-medium">MCP configuration</span>
-                <Textarea readOnly value={mcpConfig} className="min-h-40 font-mono text-xs" />
-                <Button variant="outline" disabled={!mcpConfig} onClick={() => void copy(mcpConfig, "MCP")}>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">MCP configuration</CardTitle>
+                <CardDescription>Paste this into an agent that supports MCP over HTTP.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                <pre
+                  tabIndex={0}
+                  className="max-h-[min(24rem,45vh)] overflow-auto rounded-lg bg-muted p-3 font-mono text-xs leading-relaxed outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  {mcpConfig || "Available when this Mac has a local-network address."}
+                </pre>
+                <Button
+                  variant="outline"
+                  className="w-fit"
+                  disabled={!mcpConfig}
+                  onClick={() => void copy(mcpConfig, "MCP configuration")}
+                >
+                  <Copy />
                   Copy configuration
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="control" className="flex min-h-0 flex-1 flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant={mode === "local" ? "default" : "outline"} onClick={() => setMode("local")}>
-              This machine
-            </Button>
-            <Button variant={mode === "remote" ? "default" : "outline"} onClick={() => setMode("remote")}>
-              Remote
-            </Button>
-            <p className="min-w-0 text-sm">
-              <span className="text-muted-foreground">{companyLabel}</span>
-              <span className="px-1.5 text-muted-foreground" aria-hidden>
-                ·
-              </span>
-              <span className="font-medium">{llm.model}</span>
-            </p>
-            <Button variant="outline" onClick={() => setModelOpen(true)}>
-              Change
-            </Button>
+              </CardContent>
+            </Card>
           </div>
-          <Dialog open={modelOpen} onOpenChange={setModelOpen}>
-            <DialogContent initialFocus={false}>
-              <DialogHeader>
-                <DialogTitle>Change model</DialogTitle>
-                <DialogDescription>The company and model used for this chat.</DialogDescription>
-              </DialogHeader>
-              <ModelPicker
-                saved={llm}
-                providers={providers}
-                providersNote={providersNote}
-                apiKey={apiKey}
-                onApiKey={setApiKey}
-                onCanSave={setCanSaveModel}
-                onSave={(next) =>
-                  void saveLlm(next.provider, next.baseUrl, next.model, next.apiKey, next.reasoning)
-                    .then(async () => {
-                      setApiKey("");
-                      setLlm(await llmSettings());
-                      setModelOpen(false);
-                      toast.success("Model saved");
-                    })
-                    .catch((error: unknown) => toast.error(String(error)))
-                }
-              />
-              <DialogFooter className="border-t border-border pt-4">
-                <DialogClose className={buttonVariants({ variant: "outline" })}>Cancel</DialogClose>
-                <Button type="submit" form="llm-model-form" disabled={!canSaveModel}>
-                  Save
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          {mode === "remote" && remoteSession ? (
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="truncate text-sm font-medium">{remoteSession.url}</span>
-                <StatusPill tone="ok">Connected</StatusPill>
-              </div>
-              <Button variant="outline" onClick={disconnectRemote}>
-                Disconnect
-              </Button>
-            </div>
-          ) : null}
-          {mode === "remote" && !remoteSession ? (
-            <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
-              <Input
-                aria-label="Remote URL"
-                placeholder="http://192.168.1.20:8765"
-                value={remoteUrl}
-                onChange={(event) => setRemoteUrl(event.target.value)}
-              />
-              <Input
-                aria-label="Remote token"
-                placeholder="token"
-                value={remoteToken}
-                onChange={(event) => setRemoteToken(event.target.value)}
-              />
-              <Button
-                disabled={!remoteUrl.trim() || !remoteToken.trim()}
-                onClick={connectRemote}
-              >
-                Connect
-              </Button>
-            </div>
-          ) : (
-            <div className="flex min-h-0 flex-1 flex-col">
-              <AgentChat
-                lines={lines}
-                draft={draft}
-                running={running}
-                onDraft={setDraft}
-                onSend={() => void send()}
-                onStop={() => void requestAbort()}
-                onClear={clearChat}
-              />
-            </div>
-          )}
         </TabsContent>
-      </Tabs>
-    </div>
+
+        <TabsContent value="control" className="flex min-h-0 flex-col">
+          <div className="mx-auto flex min-h-0 w-full max-w-[72rem] flex-1 flex-col gap-3 p-4 min-[1100px]:p-6">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <div role="group" aria-label="Where to control" className="inline-flex rounded-lg bg-muted p-0.5">
+                {(
+                  [
+                    ["local", "This Mac"],
+                    ["remote", "Remote"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={mode === value}
+                    onClick={() => setMode(value)}
+                    className={cn(
+                      "h-7 rounded-md px-3 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50",
+                      mode === value
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <Button variant="outline" className="ml-auto min-w-0 max-w-full" onClick={() => setModelOpen(true)}>
+                <Settings2 />
+                <span className="truncate">
+                  <span className="text-muted-foreground">{companyLabel}</span>
+                  <span className="px-1.5 text-muted-foreground" aria-hidden>
+                    ·
+                  </span>
+                  <span>{llm.model}</span>
+                </span>
+                <span className="sr-only">Change model</span>
+              </Button>
+            </div>
+            <Dialog open={modelOpen} onOpenChange={setModelOpen}>
+              <DialogContent initialFocus={false}>
+                <DialogHeader>
+                  <DialogTitle>Change model</DialogTitle>
+                  <DialogDescription>The company and model used for this chat.</DialogDescription>
+                </DialogHeader>
+                <ModelPicker
+                  saved={llm}
+                  providers={providers}
+                  providersNote={providersNote}
+                  apiKey={apiKey}
+                  onApiKey={setApiKey}
+                  onCanSave={setCanSaveModel}
+                  onSave={(next) =>
+                    void saveLlm(next.provider, next.baseUrl, next.model, next.apiKey, next.reasoning)
+                      .then(async () => {
+                        setApiKey("");
+                        setLlm(await llmSettings());
+                        setModelOpen(false);
+                        toast.success("Model saved");
+                      })
+                      .catch((error: unknown) => toast.error(String(error)))
+                  }
+                />
+                <DialogFooter className="border-t border-border pt-4">
+                  <DialogClose className={buttonVariants({ variant: "outline" })}>Cancel</DialogClose>
+                  <Button type="submit" form="llm-model-form" disabled={!canSaveModel}>
+                    Save
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            {mode === "remote" && remoteSession ? (
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="truncate font-mono text-xs">{remoteSession.url}</span>
+                  <StatusPill tone="ok" label="Connected" />
+                </div>
+                <Button variant="outline" size="sm" onClick={disconnectRemote}>
+                  Disconnect
+                </Button>
+              </div>
+            ) : null}
+            {mode === "remote" && !remoteSession ? (
+              <form
+                className="grid content-start gap-3 rounded-xl border border-border bg-card p-4 min-[900px]:max-w-xl"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  connectRemote();
+                }}
+              >
+                <div>
+                  <h2 className="text-base font-semibold">Drive another computer</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Copy the URL and the token from the Share tab of LiveUse on that computer.
+                  </p>
+                </div>
+                <label className="grid gap-1.5 text-sm font-medium">
+                  URL
+                  <Input
+                    placeholder="http://192.168.1.20:8765"
+                    value={remoteUrl}
+                    onChange={(event) => setRemoteUrl(event.target.value)}
+                  />
+                </label>
+                <label className="grid gap-1.5 text-sm font-medium">
+                  Token
+                  <Input
+                    value={remoteToken}
+                    onChange={(event) => setRemoteToken(event.target.value)}
+                  />
+                </label>
+                <Button type="submit" className="w-fit" disabled={!remoteUrl.trim() || !remoteToken.trim()}>
+                  Connect
+                </Button>
+              </form>
+            ) : (
+              <div className="flex min-h-0 flex-1 flex-col">
+                <AgentChat
+                  lines={lines}
+                  draft={draft}
+                  running={running}
+                  onDraft={setDraft}
+                  onSend={() => void send()}
+                  onStop={() => void requestAbort()}
+                  onClear={clearChat}
+                />
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </main>
+    </Tabs>
   );
 }
+
+function NavTab({ value, icon, children }: { value: string; icon: React.ReactNode; children: string }) {
+  return (
+    <TabsPrimitive.Tab
+      value={value}
+      title={children}
+      aria-label={children}
+      className="flex h-10 items-center justify-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-active:bg-accent data-active:text-accent-foreground min-[900px]:justify-start [&_svg]:size-[1.15rem] [&_svg]:shrink-0"
+    >
+      {icon}
+      <span className="hidden min-[900px]:inline">{children}</span>
+    </TabsPrimitive.Tab>
+  );
+}
+
+type DeviceState = "connected" | "updating" | "bootloader" | "foreign" | "none";
+
+function deviceState(device: DeviceStatus, flashing: boolean): DeviceState {
+  if (flashing) return "updating";
+  if (device.connected) return "connected";
+  if (device.bootloader) return "bootloader";
+  if (device.foreign) return "foreign";
+  return "none";
+}
+
+const STATE_COPY: Record<DeviceState, { pill: string; title: string; body: string }> = {
+  connected: {
+    pill: "LuLu connected",
+    title: "LuLu is connected",
+    body: "The mouse and keyboard answer over the USB cable.",
+  },
+  updating: {
+    pill: "Updating",
+    title: "Updating LuLu",
+    body: "Keep the cable plugged in until this finishes.",
+  },
+  bootloader: {
+    pill: "Bootloader",
+    title: "LuLu is waiting for firmware",
+    body: "Write the LiveUse firmware to start it.",
+  },
+  foreign: {
+    pill: "Other firmware",
+    title: "This board runs another program",
+    body: "It is not running LiveUse yet.",
+  },
+  none: {
+    pill: "No device",
+    title: "Plug in LuLu",
+    body: "Use a USB-C cable that carries data.",
+  },
+};
 
 function FirmwareOfferBlock({
   offer,
@@ -597,7 +750,7 @@ function FirmwareOfferBlock({
     return null;
   }
   return (
-    <div className="grid gap-2 border-t border-border pt-3">
+    <div className="grid max-w-md justify-items-center gap-2 text-sm">
       {flashing ? (
         <p>
           {firstSetup ? "First setup. " : ""}
@@ -614,7 +767,7 @@ function FirmwareOfferBlock({
         <p className="text-muted-foreground">Connect LuLu to update.</p>
       ) : null}
       {flashError ? <p className="text-destructive">{flashError}</p> : null}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap justify-center gap-2">
         {offer.state === "update" ? (
           <Button disabled={flashing} onClick={onWrite}>
             Update to {offer.available}
@@ -661,7 +814,7 @@ function phaseLabel(phase: string | undefined) {
 
 function StatusRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-t border-border/60 py-1 first:border-t-0">
+    <div className="flex items-center justify-between gap-4 border-t border-border/60 py-2 first:border-t-0">
       <span className="text-muted-foreground">{label}</span>
       <span className="truncate text-right font-mono text-xs">{value}</span>
     </div>
@@ -684,11 +837,14 @@ const toneDot: Record<Tone, string> = {
   off: "bg-muted-foreground/50",
 };
 
-function StatusPill({ tone, children }: { tone: Tone; children: string }) {
+function StatusPill({ tone, label }: { tone: Tone; label: string }) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium shadow-xs">
+    <span
+      title={label}
+      className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-card px-2 py-1.5 text-xs font-medium shadow-xs min-[900px]:justify-start min-[900px]:px-3"
+    >
       <span className={"size-2 rounded-full " + toneDot[tone]} aria-hidden />
-      {children}
+      <span className="sr-only min-[900px]:not-sr-only">{label}</span>
     </span>
   );
 }
@@ -713,23 +869,28 @@ const hints = [
     url: "https://wiki.seeedstudio.com/Seeeduino-XIAO/",
   },
 ];
-
 function SetupHints() {
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      {hints.map((hint) => (
-        <div key={hint.title} className="grid content-start gap-1.5 rounded-xl border border-border bg-card p-4 text-sm">
-          <span className="font-medium">{hint.title}</span>
-          <p className="text-muted-foreground">{hint.body}</p>
-          <button
-            type="button"
-            className="w-fit cursor-pointer text-left text-primary underline-offset-4 hover:underline"
-            onClick={() => void openUrl(hint.url).catch((error: unknown) => toast.error(String(error)))}
-          >
-            {hint.link}
-          </button>
-        </div>
-      ))}
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Set up LuLu</CardTitle>
+      </CardHeader>
+      <CardContent className="grid">
+        {hints.map((hint) => (
+          <div key={hint.title} className="grid gap-1 border-t border-border/60 py-3 first:border-t-0 first:pt-0 text-sm">
+            <span className="font-medium">{hint.title}</span>
+            <p className="text-muted-foreground">{hint.body}</p>
+            <button
+              type="button"
+              className="inline-flex w-fit cursor-pointer items-center gap-1 rounded text-left text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+              onClick={() => void openUrl(hint.url).catch((error: unknown) => toast.error(String(error)))}
+            >
+              {hint.link}
+              <ExternalLink className="size-3" aria-hidden />
+            </button>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }

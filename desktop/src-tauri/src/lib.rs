@@ -707,6 +707,9 @@ pub fn run() {
                     });
                 })
                 .map_err(|err| -> Box<dyn std::error::Error> { Box::new(err) })?;
+            if let Some(main) = app.get_webview_window("main") {
+                fit_main_window(&main);
+            }
             if let Some(overlay) = app.get_webview_window("overlay") {
                 let _ = overlay.set_focusable(false);
                 let _ = overlay.set_content_protected(true);
@@ -730,6 +733,26 @@ pub fn run() {
                 show_main(app);
             }
         });
+}
+
+/// Sizes the main window to the screen it opens on: about three quarters of the
+/// display, never below the minimum and never past what the display can hold.
+fn fit_main_window(window: &tauri::WebviewWindow) {
+    let monitor = window
+        .current_monitor()
+        .ok()
+        .flatten()
+        .or_else(|| window.primary_monitor().ok().flatten());
+    let Some(monitor) = monitor else {
+        return;
+    };
+    let scale = monitor.scale_factor();
+    let screen_w = f64::from(monitor.size().width) / scale;
+    let screen_h = f64::from(monitor.size().height) / scale;
+    let width = (screen_w * 0.75).clamp(720.0, 1560.0).min(screen_w);
+    let height = (screen_h * 0.78).clamp(560.0, 1040.0).min(screen_h);
+    let _ = window.set_size(tauri::LogicalSize::new(width, height));
+    let _ = window.center();
 }
 
 fn load_state(app: &tauri::AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {

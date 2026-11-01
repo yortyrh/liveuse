@@ -1,8 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/inter";
-@import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -100,10 +100,11 @@
 }
 
 @theme inline {
-  --font-heading: var(--font-inter);
-  --font-sans: var(--font-inter);
-  --font-inter: "Inter Variable", sans-serif;
-  --font-jetbrains-mono: "JetBrains Mono Variable", monospace;
+  --font-heading: var(--font-geist);
+  --font-sans: var(--font-geist);
+  --font-mono: var(--font-geist-mono);
+  --font-geist: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: "Geist Mono Variable", ui-monospace, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -165,11 +166,18 @@
   }
   html {
     @apply font-sans;
+    /* Every rem scales with the window: 14px in a small window, 18px on a large display. */
+    font-size: clamp(14px, 0.45vw + 10.4px, 18px);
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
   }
   :root {
-    --font-heading: var(--font-inter);
-    --font-body: var(--font-inter);
-    --font-mono: var(--font-jetbrains-mono);
+    --font-heading: var(--font-geist);
+    --font-body: var(--font-geist);
   }
 
   h1 {
@@ -224,7 +232,7 @@
     font-family: var(--font-body);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
-    font-feature-settings: "cv11", "ss01";
+    overscroll-behavior: none;
   }
 
   code,
@@ -235,4 +243,23 @@
 
 .bg-stage {
   background: var(--stage);
+}
+
+/* The one moving thing: a pulse travelling the cable while LuLu is connected. */
+@keyframes cable {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}
+.cable-pulse {
+  animation: cable 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cable-pulse {
+    animation: none;
+    transform: translateX(150%);
+  }
 }
