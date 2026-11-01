@@ -981,10 +981,17 @@ async fn paste_text(state: &AppState, text: &str) -> Result<(), ActionError> {
     restored
 }
 
+/// `pbcopy` and `pbpaste` read and write text in the locale's encoding. An app
+/// opened from Finder has no `LANG`, so they fall back to MacRoman and mangle
+/// emoji and accents. Force UTF-8.
+#[cfg(target_os = "macos")]
+const CLIPBOARD_LOCALE: &str = "en_US.UTF-8";
+
 fn clipboard_text() -> Result<String, ActionError> {
     #[cfg(target_os = "macos")]
     {
         let output = std::process::Command::new("pbpaste")
+            .env("LC_ALL", CLIPBOARD_LOCALE)
             .output()
             .map_err(|err| ActionError::Bad(format!("could not read the clipboard: {err}")))?;
         if !output.status.success() {
@@ -1005,6 +1012,7 @@ fn set_clipboard(text: &str) -> Result<(), ActionError> {
     #[cfg(target_os = "macos")]
     {
         let mut child = std::process::Command::new("pbcopy")
+            .env("LC_ALL", CLIPBOARD_LOCALE)
             .stdin(std::process::Stdio::piped())
             .spawn()
             .map_err(|err| ActionError::Bad(format!("could not set the clipboard: {err}")))?;
