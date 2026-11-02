@@ -2,6 +2,10 @@
 
 LiveUse drives **LuLu**, a USB device: a printed case with a Seeed XIAO SAMD21 inside, running the LiveUse firmware. Users see LuLu; the chip is a spec, not the product name. In every picture, show the board inside the case.
 
+![LiveUse updating LuLu, showing the Share tab, and an agent researching ORMs in Chrome and typing a report in TextEdit](web/public/demo.gif)
+
+*LiveUse updates the LuLu firmware and shares its API. Then an agent searches in Chrome and writes a report in TextEdit with LuLu's mouse and keyboard. Sped up 8 times.*
+
 ## How the projects connect
 
 LiveUse is four repositories that work together:

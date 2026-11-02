@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
 import { AgentHero } from "@/components/agent-hero";
@@ -78,6 +79,29 @@ export default function Home() {
       <main id="content" tabIndex={-1} className="outline-none">
         <Band className="pt-6 pb-24 sm:pt-10">
           <AgentHero />
+        </Band>
+
+        <Band className="border-t border-border py-20">
+          <section aria-labelledby="demo-title" className="flex flex-col gap-12">
+            <div className="flex max-w-[640px] flex-col gap-4">
+              <h2 id="demo-title" className="display text-4xl sm:text-5xl">
+                See it work
+              </h2>
+              <p className="text-lg text-pretty">
+                LiveUse updates the LuLu firmware, shares its API, and then an agent searches in
+                Chrome and writes a report in TextEdit with LuLu&apos;s mouse and keyboard. Sped
+                up 8 times.
+              </p>
+            </div>
+            <Image
+              src="/demo.gif"
+              alt="LiveUse updating LuLu, showing the Share tab, and an agent researching ORMs in Chrome and typing a report in TextEdit"
+              width={960}
+              height={600}
+              unoptimized
+              className="h-auto w-full rounded-lg border border-foreground/70"
+            />
+          </section>
         </Band>
 
         <Band className="border-t border-border py-20">
