@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<!-- Source of the project banner. See README.md in this folder for how to render it. -->
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=block" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef0f2; --ink: #15181d; --card: #f8f9fa; --muted: #5a6170; --border: #cfd4db;
+    --brand: #2e62d9; --pointer: #3ee0e8; --spark: #f5b429; --stage: #e4e7eb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* The canvas is 1200x600 (2:1). It centers in a taller window, so a 1200x630 render adds an even band. */
+  html { height: 100%; overflow: hidden; display: grid; place-items: center; background: var(--desk, var(--bg)); }
+  body { width: 1200px; height: 600px; overflow: hidden; }
+  body { background: var(--bg); color: var(--ink); font-family: 'Archivo', system-ui, sans-serif; -webkit-font-smoothing: antialiased; position: relative; }
+  .mono { font-family: 'Martian Mono', ui-monospace, monospace; font-stretch: 85%; }
+  .display { font-stretch: 125%; font-weight: 700; letter-spacing: -0.02em; line-height: 0.98; }
+  .wide { font-stretch: 112%; letter-spacing: -0.01em; }
+
+  .left { position: absolute; left: 60px; top: 44px; width: 560px; }
+  .brand { display: flex; align-items: center; gap: 12px; font-size: 28px; font-weight: 700; color: var(--brand); }
+  .brand svg { width: 52px; height: 52px; margin-left: -5px; }
+  h1 { margin-top: 34px; font-size: 50px; }
+  .sub { margin-top: 20px; font-size: 18px; line-height: 1.5; color: var(--muted); max-width: 520px; }
+  .facts { margin-top: 26px; display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 0; border-top: 1px solid var(--border); padding-top: 18px; }
+  .facts div { padding-right: 26px; margin-right: 26px; border-right: 1px solid var(--border); }
+  .facts div:last-child { border-right: 0; margin-right: 0; padding-right: 0; }
+  .facts b { display: block; font-size: 20px; font-weight: 700; }
+  .facts span { display: block; margin-top: 4px; font-size: 14px; color: var(--muted); }
+  .foot { position: absolute; left: 60px; bottom: 40px; display: flex; gap: 14px; align-items: center; font-size: 15px; color: var(--muted); }
+  .foot b { color: var(--ink); font-weight: 600; }
+  .foot .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--border); }
+
+  figure { position: absolute; left: 676px; top: 48px; width: 468px; }
+  .stage {
+    position: relative; height: 330px; border: 1px solid var(--border); border-bottom: 0; border-radius: 10px 10px 0 0; overflow: hidden;
+    background-color: var(--stage);
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--brand) 9%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--brand) 9%, transparent) 1px, transparent 1px),
+      linear-gradient(color-mix(in srgb, var(--brand) 4%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--brand) 4%, transparent) 1px, transparent 1px);
+    background-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stage img { width: 62%; margin-top: -26px; filter: drop-shadow(0 22px 22px rgba(16,28,60,.28)); }
+  .dim { position: absolute; left: 14%; right: 14%; bottom: 30px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--brand); }
+  .dim i { display: block; background: var(--brand); }
+  .dim .tick { width: 1px; height: 12px; }
+  .dim .line { height: 1px; flex: 1; }
+  .label { position: absolute; left: 18px; top: 16px; font-size: 12px; color: var(--muted); }
+  .label b { color: var(--ink); font-weight: 600; }
+  .log { background: var(--ink); border-radius: 0 0 10px 10px; padding: 16px 20px 18px; font-size: 12.5px; line-height: 26px; color: #c9ced6; }
+  .log .h { display: flex; justify-content: space-between; color: #8a929e; margin-bottom: 6px; }
+  .log .h span:last-child { display: flex; align-items: center; gap: 8px; color: var(--pointer); }
+  .log .h span:last-child::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--pointer); }
+  .log li { list-style: none; display: flex; gap: 14px; white-space: nowrap; }
+  .log .c { color: #5f6773; } .log .w { color: #fff; } .log .a { color: var(--pointer); } .log .r { color: var(--spark); }
+  .cursor { position: absolute; left: 1038px; top: 230px; width: 30px; height: 40px; }
+</style>
+</head>
+<body>
+  <div class="left">
+    <div class="brand wide">
+      <svg viewBox="0 0 128 128"><g transform="translate(64 64) scale(0.8) translate(-64 -64)"><rect width="128" height="128" rx="28" fill="#111111"/><g transform="translate(64 64) scale(0.64) translate(-52 -67)"><path d="M26 18 L26 84 L44 66 L58 94 L68 89 L54 61 L78 61 Z" fill="#3EE0E8" stroke="#071316" stroke-width="4" stroke-linejoin="round"/><g transform="translate(52 98)"><polygon points="0,-18 3.2,-3.2 18,0 3.2,3.2 0,18 -3.2,3.2 -18,0 -3.2,-3.2" fill="#F5B429"/><polygon points="0,-8 1.6,-1.6 8,0 1.6,1.6 0,8 -1.6,1.6 -8,0 -1.6,-1.6" fill="#FFF4CC"/></g></g></g></svg>
+      LiveUse
+    </div>
+    <h1 class="display">Give your agent a real mouse and keyboard</h1>
+    <p class="sub">LuLu is a small USB device your Mac sees as a mouse and a keyboard. LiveUse, the Mac app, runs the agent and shares LuLu as an API and an MCP, behind a token you control.</p>
+    <div class="facts">
+      <div><b class="wide">USB HID</b><span>Real input, not simulated</span></div>
+      <div><b class="wide">API + MCP</b><span>On your local network</span></div>
+      <div><b class="wide">3 providers</b><span>Anthropic, OpenAI, Google</span></div>
+    </div>
+  </div>
+  <div class="foot">
+    <b>liveuse.sitewebr.com</b><span class="dot"></span>
+    <span>Tauri</span><span class="dot"></span><span>Rust</span><span class="dot"></span><span>React</span><span class="dot"></span><span>XIAO SAMD21 inside</span>
+  </div>
+
+  <figure>
+    <div class="stage">
+      <div class="label mono"><b>LuLu</b> · USB-C</div>
+      <img src="../../web/public/case/assembled.png" alt="">
+      <div class="dim mono"><i class="tick"></i><i class="line"></i><span>25.0 × 21.6 × 8.9 mm</span><i class="line"></i><i class="tick"></i></div>
+    </div>
+    <div class="log mono">
+      <div class="h"><span>lulu.local:8765/mcp</span><span>LuLu connected</span></div>
+      <ol>
+        <li><span class="c">computer</span><span class="w">screenshot</span><span class="r">1 image</span></li>
+        <li><span class="c">computer</span><span class="w">hotkey</span><span class="a">["command", "space"]</span><span class="r">ok</span></li>
+        <li><span class="c">computer</span><span class="w">type</span><span class="a">"TextEdit\n"</span><span class="r">ok</span></li>
+        <li><span class="c">computer</span><span class="w">left_click</span><span class="a">[412, 188]</span><span class="r">ok</span></li>
+      </ol>
+    </div>
+  </figure>
+  <svg class="cursor" viewBox="24 16 56 80"><path d="M26 18 L26 84 L44 66 L58 94 L68 89 L54 61 L78 61 Z" fill="#3EE0E8" stroke="#071316" stroke-width="4" stroke-linejoin="round"/></svg>
+</body>
+</html>
