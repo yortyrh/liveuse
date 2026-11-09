@@ -10,8 +10,11 @@ const martian = Martian_Mono({ subsets: ["latin"], axes: ["wdth"], variable: "--
 const description =
   "Download LiveUse for Mac. With LuLu plugged in, it publishes a mouse and keyboard API and MCP on your local network.";
 
-// Set SITE_URL in production so Open Graph and Twitter image URLs resolve to the public origin.
-const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
+// Open Graph and Twitter image URLs resolve against this origin. SITE_URL overrides it; without
+// it, production builds use the public site so shared links never point at localhost.
+const siteUrl =
+  process.env.SITE_URL ??
+  (process.env.NODE_ENV === "production" ? "https://liveuse.sitewebr.com" : "http://localhost:3000");
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
