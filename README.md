@@ -1,5 +1,7 @@
 # LiveUse
 
+> 📖 **Case study:** [how and why I built it](https://yorty.info/projects/live-use/) · Built by [Yorty Ruiz Hernandez](https://yorty.info)
+
 LiveUse drives **LuLu**, a USB device: a printed case with a Seeed XIAO SAMD21 inside, running the LiveUse firmware. Users see LuLu; the chip is a spec, not the product name. In every picture, show the board inside the case.
 
 ![LiveUse updating LuLu, showing the Share tab, and an agent researching ORMs in Chrome and typing a report in TextEdit](web/public/demo.gif)
